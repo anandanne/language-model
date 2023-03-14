@@ -1,0 +1,14 @@
+python run_gpt2.py \
+    --model_name_or_path uer/gpt2-chinese-cluecorpussmall \
+    --train_file data/train.txt \
+    --validation_file data/valid.txt \
+    --cache_dir data \
+    --per_device_train_batch_size 2 \
+    --per_device_eval_batch_size 2 \
+    --num_train_epochs 10 \
+    --save_total_limit 2 \
+    --do_train \
+    --do_eval \
+    --save_steps 1000 \
+    --logging_steps 1000 \
+    --output_dir outputs/gpt2
