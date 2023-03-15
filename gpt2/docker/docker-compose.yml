@@ -1,0 +1,27 @@
+version: '3.1'
+services:
+  gpt2-chinese-serving:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: transformers:gpu
+    runtime: nvidia
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+    container_name: gpt2-chinese
+    restart: on-failure
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data:/workspace/data
+      - ./run_gpt2_chinese_abstract.sh:/workspace/run_gpt2_chinese_abstract.sh
+    command: [ "bash","-c","./run_gpt2_chinese_abstract.sh" ]
+    networks:
+      - net
+networks:
+  net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 10.21.1.0/24
+          gateway: 10.21.1.1

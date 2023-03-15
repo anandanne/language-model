@@ -36,7 +36,7 @@ from datasets import load_dataset
 from sklearn.metrics import accuracy_score
 from transformers import (
     GPT2LMHeadModel,
-    AutoTokenizer,
+    BertTokenizer,
     GPT2Config,
     HfArgumentParser,
     Trainer,
@@ -59,7 +59,6 @@ class ModelArguments:
     """
     Arguments pertaining to which model/config/tokenizer we are going to fine-tune, or train from scratch.
     """
-
     model_name_or_path: Optional[str] = field(
         default=None,
         metadata={
@@ -328,9 +327,9 @@ def main():
     }
 
     if model_args.tokenizer_name:
-        tokenizer = AutoTokenizer.from_pretrained(model_args.tokenizer_name, **tokenizer_kwargs)
+        tokenizer = BertTokenizer.from_pretrained(model_args.tokenizer_name, **tokenizer_kwargs)
     elif model_args.model_name_or_path:
-        tokenizer = AutoTokenizer.from_pretrained(model_args.model_name_or_path, **tokenizer_kwargs)
+        tokenizer = BertTokenizer.from_pretrained(model_args.model_name_or_path, **tokenizer_kwargs)
     else:
         raise ValueError(
             "You are instantiating a new tokenizer from scratch. This is not supported by this script."
