@@ -1,6 +1,5 @@
 import gradio as gr
 from transformers import GPT2LMHeadModel
-
 from tokenization import CpmTokenizer
 
 model_name_or_path = "outputs/gpt2-chinese"
@@ -18,7 +17,7 @@ def infer_model(input_text, max_length=128, top_p=0.9):
         eos_token_id=tokenizer.eos_token_id,
         pad_token_id=0,
         no_repeat_ngram_size=2,
-        early_stopping=True)[0]
+        early_stopping=True)[0].tolist()
 
     return input_text + tokenizer.decode(gen[len(inputs['input_ids'][0]):])
 
