@@ -14,6 +14,7 @@ services:
       - "8000:8000"
     volumes:
       - ./data:/workspace/data
+      - ./model:/workspace/model
       - ./run_gpt2_chinese_abstract.sh:/workspace/run_gpt2_chinese_abstract.sh
     command: [ "bash","-c","./run_gpt2_chinese_abstract.sh" ]
     networks:

@@ -1,5 +1,6 @@
 import gradio as gr
 from transformers import GPT2LMHeadModel
+
 from tokenization import CpmTokenizer
 
 model_name_or_path = "outputs/gpt2-chinese"
