@@ -1,7 +1,7 @@
 CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 \
 python -m torch.distributed.launch --nproc_per_node 8 run_gpt2_chinese_abstract.py \
     --config_name model/config.json \
-    --tokenizer_name model/vocab.txt \
+    --tokenizer_name model/gpt-cpm-cn-sentencepiece.model \
     --train_file data/train.json \
     --validation_file data/valid.json \
     --cache_dir data \
@@ -11,6 +11,6 @@ python -m torch.distributed.launch --nproc_per_node 8 run_gpt2_chinese_abstract.
     --save_total_limit 2 \
     --do_train \
     --do_eval \
-    --save_steps 10000 \
-    --logging_steps 10000 \
+    --save_steps 5000 \
+    --logging_steps 5000 \
     --output_dir outputs/gpt2-chinese
