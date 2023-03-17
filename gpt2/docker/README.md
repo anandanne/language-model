@@ -1,13 +1,23 @@
 # Docker训练
 
-1. 训练参数配置修改 [`run_gpt2_chinese_abstract.sh`](./run_gpt2_chinese_abstract.sh)
-
-2. 修改 [`docker-compose.yml`](./docker-compose.yml) 中的文件和数据挂载路径
-
-3. 启动容器进行训练
+单机单卡训练
 
 ```commandline
-sudo docker-compose up -d
+sudo docker run --name gpt -it -d --gpus=all \
+    -v /home/xusenlin/Projects/NLP/GPT/docker/data:/workspace/data \
+    -v /home/xusenlin/Projects/NLP/GPT/docker/model:/workspace/model \
+    -v /home/xusenlin/Projects/NLP/GPT/docker/run_gpt2_chinese_abstract.sh:/workspace/run_gpt2_chinese_abstract.sh \
+    transformers:gpu /bin/bash run_gpt2_chinese_abstract.sh
+```
+
+单机多卡训练
+
+```commandline
+sudo docker run --name gpt -it -d --gpus=all \
+    -v /home/xusenlin/Projects/NLP/GPT/docker/data:/workspace/data \
+    -v /home/xusenlin/Projects/NLP/GPT/docker/model:/workspace/model \
+    -v /home/xusenlin/Projects/NLP/GPT/docker/run_gpt2_chinese_abstract.sh:/workspace/run_gpt2_chinese_abstract.sh \
+    transformers:gpu /bin/bash run_gpt2_chinese_abstract_ddp.sh
 ```
 
 部分可配置参数含义：

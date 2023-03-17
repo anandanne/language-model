@@ -1,4 +1,3 @@
-"""Tokenization classes for ChatGLM."""
 import os
 from typing import List, Optional, Union
 
@@ -173,8 +172,5 @@ if __name__ == "__main__":
     print(tokenizer.vocab_size)
     print(tokenizer.tokenize("欢迎使用百度飞浆！"))
     print(tokenizer.tokenize("如何训练chatgpt?"))
-
-    print(tokenizer("欢迎使用百度飞浆！", add_special_tokens=False))
     print(tokenizer(["欢迎使用百度飞浆！", "如何训练chatgpt?"], padding=True))
-
     print(tokenizer.batch_decode([[2092, 260, 1014, 1596, 5331, 45, 7, 7], [167, 1557, 9291, 5199, 1129, 14732, 20, 7]]))
