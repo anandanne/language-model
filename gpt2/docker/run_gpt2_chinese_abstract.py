@@ -34,6 +34,7 @@ import transformers
 from datasets import load_dataset
 from sklearn.metrics import accuracy_score
 from transformers import (
+    BertTokenizer,
     GPT2LMHeadModel,
     GPT2Config,
     HfArgumentParser,
@@ -80,6 +81,9 @@ class ModelArguments:
     )
     tokenizer_name: Optional[str] = field(
         default=None, metadata={"help": "Pretrained tokenizer name or path if not the same as model_name"}
+    )
+    tokenizer_type: Optional[str] = field(
+        default=None, metadata={"help": "Pretrained tokenizer type"}
     )
     cache_dir: Optional[str] = field(
         default=None,
@@ -307,14 +311,21 @@ def main():
             config.update_from_string(model_args.config_overrides)
             logger.info(f"New config: {config}")
 
-    tokenizer_kwargs = {
-        "cache_dir": model_args.cache_dir,
-    }
+    if model_args.tokenizer_type.lower() == "bert":
+        tokenizer_kwargs = {
+            "cache_dir": model_args.cache_dir,
+            "use_fast": True,
+        }
+    else:
+        tokenizer_kwargs = {
+            "cache_dir": model_args.cache_dir,
+        }
 
+    tokenizer_cls = BertTokenizer if model_args.tokenizer_type.lower() == "bert" else CpmTokenizer
     if model_args.tokenizer_name:
-        tokenizer = CpmTokenizer.from_pretrained(model_args.tokenizer_name, **tokenizer_kwargs)
+        tokenizer = tokenizer_cls.from_pretrained(model_args.tokenizer_name, **tokenizer_kwargs)
     elif model_args.model_name_or_path:
-        tokenizer = CpmTokenizer.from_pretrained(model_args.model_name_or_path, **tokenizer_kwargs)
+        tokenizer = tokenizer_cls.from_pretrained(model_args.model_name_or_path, **tokenizer_kwargs)
     else:
         raise ValueError(
             "You are instantiating a new tokenizer from scratch. This is not supported by this script."
