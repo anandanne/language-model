@@ -262,6 +262,7 @@ def main():
         extension,
         data_files=data_files,
         cache_dir=model_args.cache_dir,
+        streaming=data_args.streaming,
         **dataset_args,
     )
     # If no validation data is there, validation_split_percentage will be used to divide the dataset.
@@ -346,11 +347,7 @@ def main():
 
     # Preprocessing the datasets.
     # First we tokenize all the texts.
-    if training_args.do_train:
-        column_names = list(raw_datasets["train"].features)
-    else:
-        column_names = list(raw_datasets["validation"].features)
-    text_column_name = "text" if "text" in column_names else column_names[0]
+    text_column_name = "text"
     raw_datasets = raw_datasets.filter(lambda x: len(x[text_column_name]) > 10)
 
     # since this will be pickled to avoid _LazyModule error in Hasher force logger loading before tokenize_function
@@ -374,7 +371,7 @@ def main():
                 tokenize_function,
                 batched=True,
                 num_proc=data_args.preprocessing_num_workers,
-                remove_columns=column_names,
+                remove_columns=["text"],
                 load_from_cache_file=not data_args.overwrite_cache,
                 desc="Running tokenizer on dataset",
             )
@@ -382,7 +379,7 @@ def main():
             lm_datasets = raw_datasets.map(
                 tokenize_function,
                 batched=True,
-                remove_columns=column_names,
+                remove_columns=["text"],
             )
 
     if training_args.do_train:
