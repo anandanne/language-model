@@ -1,6 +1,15 @@
-torch == 1.12.1
-transformers == 4.26.1
 datasets
 scikit-learn
 jieba
 sentencepiece
+accelerate~=0.17.1
+bitsandbytes~=0.37.1
+coverage==6.4.2
+flake8==3.7.9
+flask==2.2.1
+huggingface-hub~=0.13.2
+pytest==6.2.5
+tenacity~=8.2.2
+torch<=1.13.1
+transformers~=4.27.1
+waitress~=2.1.2
