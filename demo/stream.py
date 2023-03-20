@@ -153,15 +153,3 @@ class StreamModelForCausalLM:
             if unfinished_sequences.max() == 0 or stopping_criteria(input_ids, scores):
                 break
             yield input_ids
-
-
-if __name__ == '__main__':
-    from transformers import BertTokenizerFast, GPT2LMHeadModel
-
-    model_name_or_path = "../models/gpt2-abstract/checkpoint-358000"
-    tokenizer = BertTokenizerFast.from_pretrained(model_name_or_path)
-    model = GPT2LMHeadModel.from_pretrained(model_name_or_path)
-    stream_model = StreamModelForCausalLM(model, tokenizer)
-
-    for d in stream_model.stream_decode(prompt="中国道家文化作为中国诸多文化体系中的主体之一"):
-        print(d)
