@@ -1,15 +1,16 @@
 """
 A stateful tokenizer for stream decoding.
 """
-from . import REMOVE_WHITESPACE
 
 
 class StreamTokenizer:
     """StreamTokenizer wraps around a tokenizer to support stream decoding."""
 
-    def __init__(self, tokenizer):
+    def __init__(self, tokenizer, remove_whitespace=True):
         super().__init__()
         self.tokenizer = tokenizer
+        self.remove_whitespace = remove_whitespace
+
         self.replacement = chr(0xFFFD)
         self.buffer = []
         self.surrogates = 0
@@ -51,7 +52,7 @@ class StreamTokenizer:
         self.start = self.end
         self.end += len(text)
 
-        if REMOVE_WHITESPACE:
+        if self.remove_whitespace:
             text = text.replace(" ", "")
 
         return text.replace("#", "")

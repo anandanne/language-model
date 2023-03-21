@@ -16,7 +16,6 @@ from transformers import (
     TopPLogitsWarper,
 )
 
-from . import TOKENIZER_NAME
 from .choice import map_choice
 from .tokenizer import StreamTokenizer
 
@@ -24,10 +23,12 @@ from .tokenizer import StreamTokenizer
 class StreamModel:
     """StreamModel wraps around a language model to provide stream decoding."""
 
-    def __init__(self, model, tokenizer):
+    def __init__(self, model, tokenizer, remove_whitespace=True):
         super().__init__()
         self.model = model
         self.tokenizer = tokenizer
+        self.remove_whitespace = remove_whitespace
+
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
 
     def __call__(
@@ -61,7 +62,7 @@ class StreamModel:
         # Create stateful detokenizer for each sequence.
         detokenizers = []
         for i in range(n):
-            detokenizers.append(StreamTokenizer(self.tokenizer))
+            detokenizers.append(StreamTokenizer(self.tokenizer, remove_whitespace=self.remove_whitespace))
 
         # Echo prompt tokens if required.
         for token in input_ids:
@@ -152,9 +153,9 @@ class StreamModel:
 
         # Add processor for enforcing a min-length of new tokens.
         if (
-                config.min_new_tokens is not None
-                and config.min_new_tokens > 0
-                and config.eos_token_id is not None
+            config.min_new_tokens is not None
+            and config.min_new_tokens > 0
+            and config.eos_token_id is not None
         ):
             processor.append(
                 MinNewTokensLengthLogitsProcessor(
@@ -192,7 +193,7 @@ class StreamModel:
 
         # Separate model arguments from generation config.
         config = self.model.generation_config
-        if TOKENIZER_NAME.lower() == "bert":
+        if self.tokenizer.__str__().startswith("BertTokenizer"):
             config.bos_token_id = self.tokenizer.cls_token_id
             config.eos_token_id = self.tokenizer.sep_token_id
             config.pad_token_id = self.tokenizer.pad_token_id
@@ -321,6 +322,8 @@ def load_model(
     local_files_only=False,
     trust_remote_code=False,
     half_precision=False,
+    tokenizer_name=None,
+    remove_whitespace=True,
 ):
     """Load a text generation model and make it stream-able."""
     kwargs = {
@@ -332,7 +335,7 @@ def load_model(
     if cache_dir:
         kwargs["cache_dir"] = cache_dir
 
-    if TOKENIZER_NAME.lower() == "bert":
+    if tokenizer_name.lower() == "bert":
         tokenizer = BertTokenizerFast.from_pretrained(name_or_path, **kwargs)
     else:
         tokenizer = AutoTokenizer.from_pretrained(name_or_path, **kwargs)
@@ -361,4 +364,4 @@ def load_model(
     if not model.can_generate():
         raise TypeError(f"{name_or_path} is not a text generation model")
 
-    return StreamModel(model, tokenizer)
+    return StreamModel(model, tokenizer, remove_whitespace=remove_whitespace)
