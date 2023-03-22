@@ -23,17 +23,10 @@ from .tokenizer import StreamTokenizer
 class StreamModel:
     """StreamModel wraps around a language model to provide stream decoding."""
 
-    def __init__(self, model, tokenizer, remove_whitespace=True):
-        super().__init__()
-        self.model = model
-        self.tokenizer = tokenizer
-        self.remove_whitespace = remove_whitespace
-
-        self.device = "cuda" if torch.cuda.is_available() else "cpu"
-
-    def __call__(
+    def __init__(
         self,
-        prompt,
+        model,
+        tokenizer,
         min_tokens=0,
         max_tokens=16,
         temperature=1.0,
@@ -41,7 +34,28 @@ class StreamModel:
         n=1,
         logprobs=0,
         echo=False,
-    ):
+        remove_whitespace=True,
+        **kwargs,
+    ) -> None:
+        super().__init__()
+        self.model = model
+        self.tokenizer = tokenizer
+
+        self.generate_kwargs = {
+            "min_tokens": min_tokens,
+            "max_tokens": max_tokens,
+            "temperature": temperature,
+            "top_p": top_p,
+            "n": n,
+            "logprobs": logprobs,
+            "echo": echo,
+            "remove_whitespace": remove_whitespace,
+        }
+        self.generate_kwargs.update(kwargs)
+
+        self.device = "cuda" if torch.cuda.is_available() else "cpu"
+
+    def __call__(self, prompt, **kwargs):
         """Create a completion stream for the provided prompt."""
         if isinstance(prompt, str):
             input_ids = self.tokenize(prompt)
@@ -50,11 +64,13 @@ class StreamModel:
         else:
             raise TypeError("prompt must be a string or a 1-d tensor")
 
+        self.generate_kwargs.update(kwargs)
+
         # Ensure arguments are non-negative.
-        min_tokens = max(min_tokens, 0)
-        max_tokens = max(max_tokens, 1)
-        n = max(n, 1)
-        logprobs = max(logprobs, 0)
+        n = max(self.generate_kwargs.get("n"), 1)
+        min_tokens = max(self.generate_kwargs.get("min_tokens"), 0)
+        max_tokens = max(self.generate_kwargs.get("max_tokens"), 1)
+        logprobs = max(self.generate_kwargs.get("logprobs"), 0)
 
         # Keep track of the finish reason of each sequence.
         finish_reasons = [None] * n
@@ -62,15 +78,17 @@ class StreamModel:
         # Create stateful detokenizer for each sequence.
         detokenizers = []
         for i in range(n):
-            detokenizers.append(StreamTokenizer(self.tokenizer, remove_whitespace=self.remove_whitespace))
+            detokenizers.append(
+                StreamTokenizer(self.tokenizer, remove_whitespace=self.generate_kwargs.get("remove_whitespace"))
+            )
 
         # Echo prompt tokens if required.
-        for token in input_ids:
-            samples = self._sample(token, 0, [], []) if logprobs > 0 else {}
-            for i in range(n):
-                text = detokenizers[i].decode(token)
-                offset = detokenizers[i].start
-                if echo:
+        if self.generate_kwargs.get("echo"):
+            for token in input_ids:
+                samples = self._sample(token, 0, [], []) if logprobs > 0 else {}
+                for i in range(n):
+                    text = detokenizers[i].decode(token)
+                    offset = detokenizers[i].start
                     yield map_choice(text, i, text_offset=offset, **samples)
 
         # Generate completion tokens.
@@ -85,8 +103,8 @@ class StreamModel:
             logprobs=logprobs,
             min_new_tokens=min_tokens,
             max_new_tokens=max_tokens,
-            temperature=temperature,
-            top_p=top_p,
+            temperature=self.generate_kwargs.get("temperature"),
+            top_p=self.generate_kwargs.get("top_p"),
         ):
             for i in range(n):
                 # Check and update the finish status of the sequence.
@@ -181,7 +199,10 @@ class StreamModel:
 
     def tokenize(self, text):
         """Tokenize a string into a tensor of token IDs."""
-        batch = self.tokenizer.encode(text, return_tensors="pt")
+        if self.tokenizer.__str__().startswith("BertTokenizer"):
+            batch = self.tokenizer.encode(text, return_tensors="pt", add_special_tokens=False)
+        else:
+            batch = self.tokenizer.encode(text, return_tensors="pt")
         return batch[0].to(self.device)
 
     def generate(self, input_ids, logprobs=0, **kwargs):

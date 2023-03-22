@@ -13,3 +13,4 @@ tenacity~=8.2.2
 torch<=1.13.1
 transformers~=4.27.1
 waitress~=2.1.2
+langchain
