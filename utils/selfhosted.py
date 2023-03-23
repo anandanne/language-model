@@ -60,7 +60,6 @@ def _send_pipeline_to_device(pipeline: Any, device: int) -> Any:
 
 
 class SelfHostedPipeline(LLM, BaseModel):
-
     pipeline_ref: Any
     client: Any
     inference_fn: Callable = _generate_text
@@ -133,4 +132,4 @@ if __name__ == "__main__":
         },
     )
 
-    print(llm("台风“卡努”是近年来登陆台风中给沿途造成重大灾害的台风之一。"))
+    print(llm._generate(["为了回收某石英脉型金矿中的金,在粗磨条件下进行了尼尔森选矿机选矿试验研究。"]))
