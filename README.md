@@ -12,13 +12,13 @@
 
 ```commandline
 # windows
-set MODEL=models/gpt2-abstract/checkpoint-500000
+set MODEL=checkpoints/gpt2-abstract/checkpoint-500000
 set MODEL_LOCAL_FILES_ONLY=yes
 set TOKENIZER_NAME=bert
 set REMOVE_WHITESPACE=yes
 
 # linux
-export MODEL=models/gpt2-abstract/checkpoint-500000
+export MODEL=checkpoints/gpt2-abstract/checkpoint-500000
 export MODEL_LOCAL_FILES_ONLY=yes
 export TOKENIZER_NAME=bert
 export REMOVE_WHITESPACE=yes

@@ -4,7 +4,7 @@ from transformers import GPT2LMHeadModel, BertTokenizerFast
 from basaran.choice import reduce_choice
 from basaran.model import StreamModel
 
-model_name_or_path = "../../models/gpt2-abstract/checkpoint-500000"
+model_name_or_path = "../../checkpoints/gpt2-abstract/checkpoint-500000"
 tokenizer = BertTokenizerFast.from_pretrained(model_name_or_path)
 model = GPT2LMHeadModel.from_pretrained(model_name_or_path)
 stream_model = StreamModel(model, tokenizer, remove_whitespace=True)

@@ -14,7 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """
-Fine-tuning the library models for causal language modeling (GPT, GPT-2, CTRL, ...) on a text file or a dataset.
+Fine-tuning the library checkpoints for causal language modeling (GPT, GPT-2, CTRL, ...) on a text file or a dataset.
 
 Here is the full list of checkpoints on the hub that can be fine-tuned by this script:
 https://huggingface.co/models?filter=text-generation
@@ -26,7 +26,6 @@ import math
 import os
 import sys
 from dataclasses import dataclass, field
-from itertools import chain
 from typing import Optional
 
 import datasets
@@ -35,14 +34,13 @@ import transformers
 from datasets import load_dataset
 from sklearn.metrics import accuracy_score
 from transformers import (
+    BertTokenizer,
     GPT2LMHeadModel,
-    AutoTokenizer,
     GPT2Config,
     HfArgumentParser,
     Trainer,
     TrainingArguments,
     DataCollatorForLanguageModeling,
-    default_data_collator,
     is_torch_tpu_available,
     set_seed,
 )
@@ -50,6 +48,8 @@ from transformers.testing_utils import CaptureLogger
 from transformers.trainer_utils import get_last_checkpoint
 from transformers.utils.logging import set_verbosity
 from transformers.utils.versions import require_version
+
+from tokenization import CpmTokenizer
 
 logger = logging.getLogger(__name__)
 
@@ -59,7 +59,6 @@ class ModelArguments:
     """
     Arguments pertaining to which model/config/tokenizer we are going to fine-tune, or train from scratch.
     """
-
     model_name_or_path: Optional[str] = field(
         default=None,
         metadata={
@@ -83,13 +82,12 @@ class ModelArguments:
     tokenizer_name: Optional[str] = field(
         default=None, metadata={"help": "Pretrained tokenizer name or path if not the same as model_name"}
     )
+    tokenizer_type: Optional[str] = field(
+        default=None, metadata={"help": "Pretrained tokenizer type"}
+    )
     cache_dir: Optional[str] = field(
         default=None,
-        metadata={"help": "Where do you want to store the pretrained models downloaded from huggingface.co"},
-    )
-    use_fast_tokenizer: bool = field(
-        default=True,
-        metadata={"help": "Whether to use one of the fast tokenizer (backed by the tokenizers library) or not."},
+        metadata={"help": "Where do you want to store the pretrained checkpoints downloaded from huggingface.co"},
     )
     torch_dtype: Optional[str] = field(
         default=None,
@@ -134,16 +132,6 @@ class DataTrainingArguments:
     streaming: bool = field(default=False, metadata={"help": "Enable streaming mode"})
     use_block: bool = field(default=False, metadata={"help": "Enable blocking mode"})
     max_length: Optional[int] = field(default=512, metadata={"help": "Max sequence length"})
-    block_size: Optional[int] = field(
-        default=None,
-        metadata={
-            "help": (
-                "Optional input sequence length after tokenization. "
-                "The training dataset will be truncated in block of this size for training. "
-                "Default to the model max input length for single sentence inputs (take into account special tokens)."
-            )
-        },
-    )
     overwrite_cache: bool = field(
         default=False, metadata={"help": "Overwrite the cached training and evaluation sets"}
     )
@@ -278,6 +266,7 @@ def main():
         extension,
         data_files=data_files,
         cache_dir=model_args.cache_dir,
+        streaming=data_args.streaming,
         **dataset_args,
     )
     # If no validation data is there, validation_split_percentage will be used to divide the dataset.
@@ -322,15 +311,21 @@ def main():
             config.update_from_string(model_args.config_overrides)
             logger.info(f"New config: {config}")
 
-    tokenizer_kwargs = {
-        "cache_dir": model_args.cache_dir,
-        "use_fast": model_args.use_fast_tokenizer,
-    }
+    if model_args.tokenizer_type.lower() == "bert":
+        tokenizer_kwargs = {
+            "cache_dir": model_args.cache_dir,
+            "use_fast": True,
+        }
+    else:
+        tokenizer_kwargs = {
+            "cache_dir": model_args.cache_dir,
+        }
 
+    tokenizer_cls = BertTokenizer if model_args.tokenizer_type.lower() == "bert" else CpmTokenizer
     if model_args.tokenizer_name:
-        tokenizer = AutoTokenizer.from_pretrained(model_args.tokenizer_name, **tokenizer_kwargs)
+        tokenizer = tokenizer_cls.from_pretrained(model_args.tokenizer_name, **tokenizer_kwargs)
     elif model_args.model_name_or_path:
-        tokenizer = AutoTokenizer.from_pretrained(model_args.model_name_or_path, **tokenizer_kwargs)
+        tokenizer = tokenizer_cls.from_pretrained(model_args.model_name_or_path, **tokenizer_kwargs)
     else:
         raise ValueError(
             "You are instantiating a new tokenizer from scratch. This is not supported by this script."
@@ -363,21 +358,15 @@ def main():
 
     # Preprocessing the datasets.
     # First we tokenize all the texts.
-    if training_args.do_train:
-        column_names = list(raw_datasets["train"].features)
-    else:
-        column_names = list(raw_datasets["validation"].features)
-    text_column_name = "text" if "text" in column_names else column_names[0]
+    text_column_name = "text"
+    raw_datasets = raw_datasets.filter(lambda x: len(x[text_column_name]) > 10)
 
     # since this will be pickled to avoid _LazyModule error in Hasher force logger loading before tokenize_function
     tok_logger = transformers.utils.logging.get_logger("transformers.tokenization_utils_base")
 
     def tokenize_function(examples):
         with CaptureLogger(tok_logger) as cl:
-            if data_args.use_block:
-                output = tokenizer(examples[text_column_name])
-            else:
-                output = tokenizer(examples[text_column_name], truncation=True, max_length=data_args.max_length)
+            output = tokenizer(examples[text_column_name], truncation=True, max_length=data_args.max_length)
 
         # clm input could be much much longer than block_size
         if "Token indices sequence length is longer than the" in cl.out:
@@ -389,83 +378,23 @@ def main():
 
     with training_args.main_process_first(desc="dataset map tokenization"):
         if not data_args.streaming:
-            tokenized_datasets = raw_datasets.map(
+            lm_datasets = raw_datasets.map(
                 tokenize_function,
                 batched=True,
                 num_proc=data_args.preprocessing_num_workers,
-                remove_columns=column_names,
+                remove_columns=["text"],
                 load_from_cache_file=not data_args.overwrite_cache,
                 desc="Running tokenizer on dataset",
             )
         else:
-            tokenized_datasets = raw_datasets.map(
+            lm_datasets = raw_datasets.map(
                 tokenize_function,
                 batched=True,
-                remove_columns=column_names,
+                remove_columns=["text"],
             )
-
-    if data_args.block_size is None:
-        block_size = tokenizer.model_max_length
-        if block_size > 1024:
-            logger.warning(
-                "The chosen tokenizer supports a `model_max_length` that is longer than the default `block_size` value"
-                " of 1024. If you would like to use a longer `block_size` up to `tokenizer.model_max_length` you can"
-                " override this default with `--block_size xxx`."
-            )
-            block_size = 1024
-    else:
-        if data_args.block_size > tokenizer.model_max_length:
-            logger.warning(
-                f"The block_size passed ({data_args.block_size}) is larger than the maximum length for the model"
-                f"({tokenizer.model_max_length}). Using block_size={tokenizer.model_max_length}."
-            )
-        block_size = min(data_args.block_size, tokenizer.model_max_length)
-
-    # Main data processing function that will concatenate all texts from our dataset and generate chunks of block_size.
-    def group_texts(examples):
-        # Concatenate all texts.
-        concatenated_examples = {k: list(chain(*examples[k])) for k in examples.keys()}
-        total_length = len(concatenated_examples[list(examples.keys())[0]])
-        # We drop the small remainder, we could add padding if the model supported it instead of this drop, you can
-        # customize this part to your needs.
-        if total_length >= block_size:
-            total_length = (total_length // block_size) * block_size
-        # Split by chunks of max_len.
-        result = {
-            k: [t[i: i + block_size] for i in range(0, total_length, block_size)]
-            for k, t in concatenated_examples.items()
-        }
-        result["labels"] = result["input_ids"].copy()
-
-        return result
-
-    # Note that with `batched=True`, this map processes 1,000 texts together, so group_texts throws away a remainder
-    # for each of those groups of 1,000 texts. You can adjust that batch_size here but a higher value might be slower
-    # to preprocess.
-    #
-    # To speed up this part, we use multiprocessing. See the documentation of the map method for more information:
-    # https://huggingface.co/docs/datasets/package_reference/main_classes.html#datasets.Dataset.map
-
-    with training_args.main_process_first(desc="grouping texts together"):
-        if data_args.use_block:
-            if not data_args.streaming:
-                lm_datasets = tokenized_datasets.map(
-                    group_texts,
-                    batched=True,
-                    num_proc=data_args.preprocessing_num_workers,
-                    load_from_cache_file=not data_args.overwrite_cache,
-                    desc=f"Grouping texts in chunks of {block_size}",
-                )
-            else:
-                lm_datasets = tokenized_datasets.map(
-                    group_texts,
-                    batched=True,
-                )
-        else:
-            lm_datasets = tokenized_datasets.copy()
 
     if training_args.do_train:
-        if "train" not in tokenized_datasets:
+        if "train" not in lm_datasets:
             raise ValueError("--do_train requires a train dataset")
         train_dataset = lm_datasets["train"]
         if data_args.max_train_samples is not None:
@@ -473,7 +402,7 @@ def main():
             train_dataset = train_dataset.select(range(max_train_samples))
 
     if training_args.do_eval:
-        if "validation" not in tokenized_datasets:
+        if "validation" not in lm_datasets:
             raise ValueError("--do_eval requires a validation dataset")
         eval_dataset = lm_datasets["validation"]
         if data_args.max_eval_samples is not None:
@@ -488,7 +417,7 @@ def main():
         eval_dataset=eval_dataset if training_args.do_eval else None,
         tokenizer=tokenizer,
         # Data collator will default to DataCollatorWithPadding, so we change it.
-        data_collator=default_data_collator if data_args.use_block else DataCollatorForLanguageModeling(tokenizer, mlm=False),
+        data_collator=DataCollatorForLanguageModeling(tokenizer, mlm=False),
         compute_metrics=compute_metrics if training_args.do_eval and not is_torch_tpu_available() else None,
         preprocess_logits_for_metrics=preprocess_logits_for_metrics
         if training_args.do_eval and not is_torch_tpu_available()
@@ -507,10 +436,11 @@ def main():
 
         metrics = train_result.metrics
 
-        max_train_samples = (
-            data_args.max_train_samples if data_args.max_train_samples is not None else len(train_dataset)
-        )
-        metrics["train_samples"] = min(max_train_samples, len(train_dataset))
+        if not data_args.streaming:
+            max_train_samples = (
+                data_args.max_train_samples if data_args.max_train_samples is not None else len(train_dataset)
+            )
+            metrics["train_samples"] = min(max_train_samples, len(train_dataset))
 
         trainer.log_metrics("train", metrics)
         trainer.save_metrics("train", metrics)
@@ -522,8 +452,10 @@ def main():
 
         metrics = trainer.evaluate()
 
-        max_eval_samples = data_args.max_eval_samples if data_args.max_eval_samples is not None else len(eval_dataset)
-        metrics["eval_samples"] = min(max_eval_samples, len(eval_dataset))
+        if not data_args.streaming:
+            max_eval_samples = data_args.max_eval_samples if data_args.max_eval_samples is not None else len(eval_dataset)
+            metrics["eval_samples"] = min(max_eval_samples, len(eval_dataset))
+
         try:
             perplexity = math.exp(metrics["eval_loss"])
         except OverflowError:

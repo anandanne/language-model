@@ -241,7 +241,7 @@ class StreamModel:
                 input_ids = input_ids * eos_token_id[0]
             input_length = 1
 
-        # Prepare inputs for encoder-decoder models.
+        # Prepare inputs for encoder-decoder checkpoints.
         if self.model.config.is_encoder_decoder:
             # Get outputs from the encoder.
             encoder = self.model.get_encoder()
@@ -371,7 +371,7 @@ def load_model(
         if load_in_8bit:
             kwargs["torch_dtype"] = torch.float16
 
-    # Support both decoder-only and encoder-decoder models.
+    # Support both decoder-only and encoder-decoder checkpoints.
     try:
         model = AutoModelForCausalLM.from_pretrained(name_or_path, **kwargs)
     except ValueError:

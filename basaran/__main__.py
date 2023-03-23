@@ -93,7 +93,7 @@ def render_playground():
 
 @app.route("/v1/models")
 def list_models():
-    """List the currently available models."""
+    """List the currently available checkpoints."""
     info = {"id": SERVER_MODEL_NAME, "object": "model"}
     return jsonify(data=[info], object="list")
 

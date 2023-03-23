@@ -1,5 +1,5 @@
 """
-Configurations and general functions for serving models.
+Configurations and general functions for serving checkpoints.
 """
 import os
 
@@ -19,7 +19,7 @@ PORT = int(os.getenv("PORT", "80"))
 
 # Model-related arguments:
 MODEL_REVISION = os.getenv("MODEL_REVISION", "")
-MODEL_CACHE_DIR = os.getenv("MODEL_CACHE_DIR", "models")
+MODEL_CACHE_DIR = os.getenv("MODEL_CACHE_DIR", "checkpoints")
 MODEL_LOAD_IN_8BIT = is_true(os.getenv("MODEL_LOAD_IN_8BIT", ""))
 MODEL_LOCAL_FILES_ONLY = is_true(os.getenv("MODEL_LOCAL_FILES_ONLY", ""))
 MODEL_TRUST_REMOTE_CODE = is_true(os.getenv("MODEL_TRUST_REMOTE_CODE", ""))

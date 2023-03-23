@@ -89,7 +89,7 @@ class SelfHostedPipeline(LLM, BaseModel):
             logger.warning(
                 "Serializing pipeline. "
                 "Note, it can be quite slow"
-                "to serialize and send large models with each execution. "
+                "to serialize and send large checkpoints with each execution. "
                 "Consider sending the pipeline"
                 "to the cluster and passing the path to the pipeline instead."
             )
@@ -125,7 +125,7 @@ if __name__ == "__main__":
     llm = SelfHostedPipeline(
         model_load_fn=load_pipeline,
         load_fn_kwargs={
-            "model_name_or_path": "../models/gpt2-abstract/checkpoint-500000",
+            "model_name_or_path": "../checkpoints/gpt2-abstract/checkpoint-500000",
             "device": -1,
             "remove_whitespace": True,
             "max_tokens": 256,

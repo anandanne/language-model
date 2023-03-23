@@ -42,7 +42,7 @@ _CONFIG_FOR_DOC = "ChatGLM6BConfig"
 
 CHATGLM_6B_PRETRAINED_MODEL_ARCHIVE_LIST = [
     "THUDM/chatglm-6b",
-    # See all ChatGLM-6B models at https://huggingface.co/models?filter=chatglm
+    # See all ChatGLM-6B checkpoints at https://huggingface.co/models?filter=chatglm
 ]
 
 
@@ -606,7 +606,7 @@ class GLMBlock(torch.nn.Module):
 class ChatGLMPreTrainedModel(PreTrainedModel):
     """
     An abstract class to handle weights initialization and
-    a simple interface for downloading and loading pretrained models.
+    a simple interface for downloading and loading pretrained checkpoints.
     """
 
     is_parallelizable = False

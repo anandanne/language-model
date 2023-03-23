@@ -34,7 +34,7 @@ class ChatGLMConfig(PretrainedConfig):
         layernorm_epsilon (`float`, *optional*, defaults to 1e-5):
             The epsilon used by the layer normalization layers.
         use_cache (`bool`, *optional*, defaults to `True`):
-            Whether the model should return the last key/values attentions (not used by all models).
+            Whether the model should return the last key/values attentions (not used by all checkpoints).
     ```
 """
     model_type = "chatglm"

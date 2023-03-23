@@ -1,0 +1,21 @@
+version: "3.8"
+
+services:
+    pytorch-llm:
+        image: pytorch-llm:gpu
+        restart: always
+        environment:
+            MODEL: "checkpoints/gpt2-abstract/checkpoint-500000"
+            SERVER_MODEL_NAME: "gpt2-abstract"
+            MODEL_LOCAL_FILES_ONLY: "true"
+            TOKENIZER_NAME: "bert"
+            REMOVE_WHITESPACE: "true"
+        ports:
+            - "80:80"
+        volumes:
+            - ${PWD}:/workspace
+        deploy:
+            resources:
+                reservations:
+                    devices:
+                        - capabilities: [gpu]

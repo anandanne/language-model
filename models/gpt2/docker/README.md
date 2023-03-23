@@ -52,10 +52,3 @@ sudo docker run --name gpt -it -d --gpus=all \
 
 + `output_dir`：模型结果保存路径
 
-# Demo展示
-
-```commandline
-pip install gradio
-
-python demo.py
-```
