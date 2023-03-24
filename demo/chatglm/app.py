@@ -7,7 +7,9 @@ model_glm = model_glm.eval()
 
 
 # Define function to generate model predictions and update the history
-def predict_glm_stream(input, max_length, top_p, temperature, history=[]):
+def predict_glm_stream(input, max_length, top_p, temperature, history=None):
+    if history is None:
+        history = []
     history = list(map(tuple, history))
     for response, updates in model_glm.stream_chat(
             tokenizer_glm, input, history, top_p=top_p, temperature=temperature, max_length=max_length):

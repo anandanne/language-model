@@ -368,7 +368,7 @@ def load_model(
         kwargs["load_in_8bit"] = load_in_8bit
 
         # Override the dtype to float16 as required by bitsandbytes.
-        if load_in_8bit:
+        if half_precision or load_in_8bit:
             kwargs["torch_dtype"] = torch.float16
 
     # Support both decoder-only and encoder-decoder checkpoints.
@@ -376,10 +376,6 @@ def load_model(
         model = AutoModelForCausalLM.from_pretrained(name_or_path, **kwargs)
     except ValueError:
         model = AutoModelForSeq2SeqLM.from_pretrained(name_or_path, **kwargs)
-
-    # Cast all parameters to half-precision if required.
-    if half_precision:
-        model = model.half()
 
     # Check if the model has text generation capabilities.
     if not model.can_generate():
