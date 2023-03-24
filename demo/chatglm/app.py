@@ -7,9 +7,10 @@ model_glm = model_glm.eval()
 
 
 # Define function to generate model predictions and update the history
-def predict_glm_stream(input, top_p, temperature, history=[]):
+def predict_glm_stream(input, max_length, top_p, temperature, history=[]):
     history = list(map(tuple, history))
-    for response, updates in model_glm.stream_chat(tokenizer_glm, input, history, top_p=top_p, temperature=temperature):
+    for response, updates in model_glm.stream_chat(
+            tokenizer_glm, input, history, top_p=top_p, temperature=temperature, max_length=max_length):
         yield updates
 
 
@@ -17,7 +18,7 @@ def reset_textbox():
     return gr.update(value="")
 
 
-title = """<h1 align="center"> 🚀CHatGLM-6B - A Streaming Chatbot with Gradio</h1>
+title = """<h1 align="center"> 🚀CHatGLM-6B - A Streaming Chatbot with Gradio </h1>
 <h2 align="center">Enhance User Experience with Streaming and customizable Gradio Themes</h2>"""
 header = """<center>Find more about Chatglm-6b on Huggingface at <a href="https://huggingface.co/THUDM/chatglm-6b" target="_blank">THUDM/chatglm-6b</a>, and <a href="https://github.com/THUDM/ChatGLM-6B" target="_blank">here</a> on Github.<center>"""
 description = """<br>
@@ -49,26 +50,28 @@ with gr.Blocks(css="""#col_container {margin-left: auto; margin-right: auto;}
             chatbot_glm = gr.Chatbot(elem_id="chatglm", label='THUDM-ChatGLM6B')
 
         with gr.Accordion(label="Parameters for ChatGLM-6B", open=False):
-            gr.HTML("Parameters for ChatGLM-6B", visible=True)
-            top_p = gr.Slider(minimum=-0, maximum=1.0, value=1, step=0.05, interactive=True, label="Top-p",
-                              visible=True)
-            temperature = gr.Slider(minimum=-0, maximum=5.0, value=1, step=0.1, interactive=True, label="Temperature",
-                                    visible=True)
+            max_length = gr.Slider(
+                0, 4096, value=2048, step=1.0, label="Maximum length", interactive=True,  visible=True
+            )
+            top_p = gr.Slider(
+                0, 1, value=0.7, step=0.01, label="Top P", interactive=True, visible=True
+            )
+            temperature = gr.Slider(
+                0, 1, value=0.95, step=0.01, label="Temperature", interactive=True,  visible=True
+            )
 
     inputs.submit(predict_glm_stream,
-                  [inputs, top_p, temperature, chatbot_glm],
+                  [inputs, max_length, top_p, temperature, chatbot_glm],
                   [chatbot_glm], )
     inputs.submit(reset_textbox, [], [inputs])
 
     b1.click(predict_glm_stream,
-             [inputs, top_p, temperature, chatbot_glm],
+             [inputs, max_length, top_p, temperature, chatbot_glm],
              [chatbot_glm], )
     b1.click(reset_textbox, [], [inputs])
 
     b2.click(lambda: None, None, chatbot_glm, queue=False)
 
-    gr.HTML(
-        '''<center><a href="https://huggingface.co/spaces/ysharma/ChatGLM-6b_Gradio_Streaming?duplicate=true"><img src="https://bit.ly/3gLdBN6" alt="Duplicate Space"></a>To avoid the queue and for faster inference Duplicate this Space and upgrade to GPU</center>''')
     gr.Markdown(description)
 
 if __name__ == "__main__":
