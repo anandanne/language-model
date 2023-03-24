@@ -1,51 +1,75 @@
-from transformers import AutoModel, AutoTokenizer
 import gradio as gr
+from transformers import AutoModel, AutoTokenizer
 
-tokenizer = AutoTokenizer.from_pretrained("checkpoints/chatglm-6b", trust_remote_code=True)
-model = AutoModel.from_pretrained("checkpoints/chatglm-6b", trust_remote_code=True).half().cuda()
-model = model.eval()
-
-MAX_TURNS = 20
-MAX_BOXES = MAX_TURNS * 2
+tokenizer_glm = AutoTokenizer.from_pretrained("checkpoints/chatglm-6b", trust_remote_code=True)
+model_glm = AutoModel.from_pretrained("checkpoints/chatglm-6b", trust_remote_code=True).half().cuda()
+model_glm = model_glm.eval()
 
 
-def predict(input, max_length, top_p, temperature, history=None):
-    if history is None:
-        history = []
-    for response, history in model.stream_chat(tokenizer, input, history, max_length=max_length, top_p=top_p,
-                                               temperature=temperature):
-        updates = []
-        for query, response in history:
-            updates.append(gr.update(visible=True, value="用户：" + query))
-            updates.append(gr.update(visible=True, value="ChatGLM-6B：" + response))
-        if len(updates) < MAX_BOXES:
-            updates = updates + [gr.Textbox.update(visible=False)] * (MAX_BOXES - len(updates))
-        yield [history] + updates
+# Define function to generate model predictions and update the history
+def predict_glm_stream(input, top_p, temperature, history=[]):
+    history = list(map(tuple, history))
+    for response, updates in model_glm.stream_chat(tokenizer_glm, input, history, top_p=top_p, temperature=temperature):
+        yield updates
 
 
-with gr.Blocks() as demo:
-    state = gr.State([])
-    text_boxes = []
-    for i in range(MAX_BOXES):
-        if i % 2 == 0:
-            text_boxes.append(gr.Markdown(visible=False, label="提问："))
-        else:
-            text_boxes.append(gr.Markdown(visible=False, label="回复："))
+def reset_textbox():
+    return gr.update(value="")
 
-    with gr.Row():
-        with gr.Column(scale=4):
-            txt = gr.Textbox(
-                show_label=False, placeholder="Enter text and press enter", lines=11
-            ).style(container=False)
 
-        with gr.Column(scale=1):
-            max_length = gr.Slider(0, 4096, value=2048, step=1.0, label="Maximum length", interactive=True)
-            top_p = gr.Slider(0, 1, value=0.7, step=0.01, label="Top P", interactive=True)
-            temperature = gr.Slider(0, 1, value=0.95, step=0.01, label="Temperature", interactive=True)
-            button = gr.Button("Generate")
+title = """<h1 align="center"> 🚀CHatGLM-6B - A Streaming Chatbot with Gradio</h1>
+<h2 align="center">Enhance User Experience with Streaming and customizable Gradio Themes</h2>"""
+header = """<center>Find more about Chatglm-6b on Huggingface at <a href="https://huggingface.co/THUDM/chatglm-6b" target="_blank">THUDM/chatglm-6b</a>, and <a href="https://github.com/THUDM/ChatGLM-6B" target="_blank">here</a> on Github.<center>"""
+description = """<br>
+ChatGLM-6B is an open-source, Chinese-English bilingual dialogue language model based on the General Language Model (GLM) architecture with 6.2 billion parameters. 
+However, due to the small size of ChatGLM-6B, it is currently known to have considerable limitations, such as factual/mathematical logic errors, possible generation of harmful/biased content, weak contextual ability, self-awareness confusion, and Generate content that completely contradicts Chinese instructions for English instructions. Please understand these issues before use to avoid misunderstandings. A larger ChatGLM based on the 130 billion parameter GLM-130B is under development in internal testing.
+"""
 
-    button.click(predict, [txt, max_length, top_p, temperature, state], [state] + text_boxes)
+theme = gr.themes.Default(  # color contructors
+    primary_hue="violet",
+    secondary_hue="indigo",
+    neutral_hue="purple").set(slider_color="#800080")
 
+with gr.Blocks(css="""#col_container {margin-left: auto; margin-right: auto;}
+                #chatglm {height: 520px; overflow: auto;} """, theme=theme) as demo:
+    gr.HTML(title)
+    gr.HTML(header)
+    with gr.Column():  # (scale=10):
+        with gr.Box():
+            with gr.Row():
+                with gr.Column(scale=8):
+                    inputs = gr.Textbox(placeholder="Hi there!", label="Type an input and press Enter ⤵️ ")
+                with gr.Column(scale=1):
+                    b1 = gr.Button('🏃Run', elem_id='run').style(full_width=True)
+                with gr.Column(scale=1):
+                    b2 = gr.Button('🔄Clear the Chatbot!', elem_id='clear').style(full_width=True)
+                    state_glm = gr.State([])
+
+        with gr.Box():
+            chatbot_glm = gr.Chatbot(elem_id="chatglm", label='THUDM-ChatGLM6B')
+
+        with gr.Accordion(label="Parameters for ChatGLM-6B", open=False):
+            gr.HTML("Parameters for ChatGLM-6B", visible=True)
+            top_p = gr.Slider(minimum=-0, maximum=1.0, value=1, step=0.05, interactive=True, label="Top-p",
+                              visible=True)
+            temperature = gr.Slider(minimum=-0, maximum=5.0, value=1, step=0.1, interactive=True, label="Temperature",
+                                    visible=True)
+
+    inputs.submit(predict_glm_stream,
+                  [inputs, top_p, temperature, chatbot_glm],
+                  [chatbot_glm], )
+    inputs.submit(reset_textbox, [], [inputs])
+
+    b1.click(predict_glm_stream,
+             [inputs, top_p, temperature, chatbot_glm],
+             [chatbot_glm], )
+    b1.click(reset_textbox, [], [inputs])
+
+    b2.click(lambda: None, None, chatbot_glm, queue=False)
+
+    gr.HTML(
+        '''<center><a href="https://huggingface.co/spaces/ysharma/ChatGLM-6b_Gradio_Streaming?duplicate=true"><img src="https://bit.ly/3gLdBN6" alt="Duplicate Space"></a>To avoid the queue and for faster inference Duplicate this Space and upgrade to GPU</center>''')
+    gr.Markdown(description)
 
 if __name__ == "__main__":
-    demo.queue().launch(server_name="0.0.0.0")
+    demo.queue(concurrency_count=16).launch(height=800, debug=True, server_name="0.0.0.0")
