@@ -1,6 +1,8 @@
 import gradio as gr
 from transformers import AutoModel, AutoTokenizer
 
+from utils.toolbox import format_io
+
 tokenizer_glm = AutoTokenizer.from_pretrained("checkpoints/chatglm-6b", trust_remote_code=True)
 model_glm = AutoModel.from_pretrained("checkpoints/chatglm-6b", trust_remote_code=True).half().cuda()
 model_glm = model_glm.eval()
@@ -31,7 +33,11 @@ However, due to the small size of ChatGLM-6B, it is currently known to have cons
 theme = gr.themes.Default(  # color contructors
     primary_hue="violet",
     secondary_hue="indigo",
+    font=["ui-sans-serif", "system-ui", "sans-serif", gr.themes.utils.fonts.GoogleFont("Source Sans Pro")],
+    font_mono=["ui-monospace", "Consolas", "monospace", gr.themes.utils.fonts.GoogleFont("IBM Plex Mono")],
     neutral_hue="purple").set(slider_color="#800080")
+
+gr.Chatbot.postprocess = format_io
 
 with gr.Blocks(css="""#col_container {margin-left: auto; margin-right: auto;}
                 #chatglm {height: 520px; overflow: auto;} """, theme=theme) as demo:
