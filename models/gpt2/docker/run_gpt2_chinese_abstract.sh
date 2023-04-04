@@ -2,6 +2,7 @@
 python run_gpt2_chinese_abstract.py \
     --config_name model/config.json \
     --tokenizer_name model/gpt-cpm-cn-sentencepiece.model \
+    --tokenizer_type cpm \
     --train_file data/train.json \
     --validation_file data/valid.json \
     --cache_dir data \
