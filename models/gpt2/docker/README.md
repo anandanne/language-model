@@ -20,6 +20,19 @@ sudo docker run --name gpt -it -d --gpus=all \
     transformers:gpu /bin/bash run_gpt2_chinese_abstract_ddp.sh
 ```
 
+多机多卡训练
+
+在每个机器节点上启动，需要修改 `node_rank`
+
+```commandline
+sudo docker run --name gpt -it -d --gpus=all \
+    -v /home/xusenlin/Projects/NLP/GPT/docker/data:/workspace/data \
+    -v /home/xusenlin/Projects/NLP/GPT/docker/model:/workspace/model \
+    -v /home/xusenlin/Projects/NLP/GPT/docker/run_gpt2_chinese_abstract.sh:/workspace/run_gpt2_chinese_abstract.sh \
+    transformers:gpu /bin/bash run_gpt2_chinese_abstract_multi_nodes.sh
+```
+
+
 部分可配置参数含义：
 
 + `CUDA_VISIBLE_DEVICES`: 使用的 `GPU` 序号
