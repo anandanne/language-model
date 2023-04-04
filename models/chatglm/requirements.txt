@@ -1,0 +1,9 @@
+protobuf>=3.19.5,<3.20.1
+transformers
+icetk
+cpm_kernels
+torch>=1.10
+rouge_chinese
+nltk
+jieba
+datasets
