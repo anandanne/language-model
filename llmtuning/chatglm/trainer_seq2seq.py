@@ -203,7 +203,7 @@ class Seq2SeqTrainer(Trainer):
         if gen_kwargs.get("max_length") is not None and generated_tokens.shape[-1] < gen_kwargs["max_length"]:
             generated_tokens = self._pad_tensors_to_max_len(generated_tokens, gen_kwargs["max_length"])
         elif gen_kwargs.get("max_new_tokens") is not None and generated_tokens.shape[-1] < (
-                gen_kwargs["max_new_tokens"] + 1
+            gen_kwargs["max_new_tokens"] + 1
         ):
             generated_tokens = self._pad_tensors_to_max_len(generated_tokens, gen_kwargs["max_new_tokens"] + 1)
 
@@ -217,7 +217,7 @@ class Seq2SeqTrainer(Trainer):
             if gen_kwargs.get("max_length") is not None and labels.shape[-1] < gen_kwargs["max_length"]:
                 labels = self._pad_tensors_to_max_len(labels, gen_kwargs["max_length"])
             elif gen_kwargs.get("max_new_tokens") is not None and labels.shape[-1] < (
-                    gen_kwargs["max_new_tokens"] + 1
+                gen_kwargs["max_new_tokens"] + 1
             ):
                 labels = self._pad_tensors_to_max_len(labels, (gen_kwargs["max_new_tokens"] + 1))
         else:

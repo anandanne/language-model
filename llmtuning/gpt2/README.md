@@ -17,3 +17,59 @@
 与之前的实现方法最大的不同是：`GPT2` 的训练数据在数量、质量、广泛度上都有大幅度提高：抓取了大量不同类型的网页，并且经过筛选去重生成高质量的训练数据，同时训练出体量更巨大的模型。
 
 在 `Pretrain` 部分基本与 `GPT` 方法相同，在第二阶段的 `Fine-tuning` 具体任务，当问题的输入和输出均为文字时，只需要用特定方法组织不同类型的有标注数据即可代入模型，如对于问答使用“问题+答案+文档”的组织形式，对于翻译使用“英文+法文”形式。用前文预测后文，而非使用标注数据调整模型参数。这样既使用了统一的结构做训练，又可适配不同类型的任务。虽然学习速度较慢，但也能达到相对不错的效果。
+
+## 模型训练
+
+### 单机单卡训练
+
+```commandline
+bash run_gpt2.sh
+```
+
+### 单机多卡训练
+
+```commandline
+bash run_gpt_ddp.sh
+```
+
+### 多机多卡训练
+
+在每个机器节点上启动，需要修改 `node_rank`
+
+```commandline
+bash run_gpt2_multi_nodes.sh
+```
+
+
+部分可配置参数含义：
+
++ `CUDA_VISIBLE_DEVICES`: 使用的 `GPU` 序号
+
++ `nproc_per_node`: 单个机器的 `GPU` 数量
+
++ `model_name_or_path`：模型文件路径，包含配置、权重、词表等
+
++ `train_file`：训练集文件名或文件名列表
+
++ `validation_file`：验证集文件名或文件名列表
+
++ `cache_dir`：数据和模型的缓存路径
+
++ `per_device_train_batch_size`：训练时单个 `gpu` 设备的批量大小
+
++ `per_device_eval_batch_size`：验证时单个 `gpu` 设备的批量大小
+
++ `num_train_epochs`：训练轮次
+
++ `save_total_limit`：最多保存的模型个数
+
++ `do_train`：是否进行训练
+
++ `do_eval`：是否进行验证评估
+
++ `save_steps`：每隔多少步保存一次模型
+
++ `logging_steps`：每隔多少步打印一次日志
+
++ `output_dir`：模型结果保存路径
+

@@ -1,1 +1,1 @@
-docker build -t pytorch-llm:gpu -f docker/Dockerfile .
+docker build -t llm:gpu -f docker/Dockerfile .

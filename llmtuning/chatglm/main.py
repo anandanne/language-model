@@ -27,7 +27,7 @@ import jieba
 import numpy as np
 import transformers
 from datasets import load_dataset
-from nltk.translate.bleu_score import sentence_bleu
+from nltk.translate.bleu_score import sentence_bleu, SmoothingFunction
 from rouge_chinese import Rouge
 from transformers import (
     AutoConfig,
@@ -133,6 +133,7 @@ def main():
     # Get the column names for input/target.
     prompt_column = data_args.prompt_column
     response_column = data_args.response_column
+    history_column = data_args.history_column
 
     # Temporarily set max_target_length for training.
     max_target_length = data_args.max_target_length
@@ -141,7 +142,16 @@ def main():
         inputs, targets = [], []
         for i in range(len(examples[prompt_column])):
             if examples[prompt_column][i] and examples[response_column][i]:
-                inputs.append(examples[prompt_column][i])
+                query = examples[prompt_column][i]
+                if history_column is None or len(examples[history_column][i]) == 0:
+                    prompt = query
+                else:
+                    prompt = ""
+                    history = examples[history_column][i]
+                    for _, (old_query, response) in enumerate(history):
+                        prompt += "[Round {}]\n问：{}\n答：{}\n".format(i, old_query, response)
+                    prompt += "[Round {}]\n问：{}\n答：".format(len(history), query)
+                inputs.append(prompt)
                 targets.append(examples[response_column][i])
 
         inputs = [prefix + inp for inp in inputs]
@@ -165,7 +175,17 @@ def main():
         }
         for i in range(len(examples[prompt_column])):
             if examples[prompt_column][i] and examples[response_column][i]:
-                prompt, answer = examples[prompt_column][i], examples[response_column][i]
+                query, answer = examples[prompt_column][i], examples[response_column][i]
+
+                if history_column is None:
+                    prompt = query
+                else:
+                    prompt = ""
+                    history = examples[history_column][i]
+                    for i, (old_query, response) in enumerate(history):
+                        prompt += "[Round {}]\n问：{}\n答：{}\n".format(i, old_query, response)
+                    prompt += "[Round {}]\n问：{}\n答：".format(len(history), query)
+
                 prompt = prefix + prompt
                 a_ids = tokenizer.encode(text=prompt, add_special_tokens=False)
                 b_ids = tokenizer.encode(text=answer, add_special_tokens=False)
@@ -176,9 +196,9 @@ def main():
                 if len(b_ids) > data_args.max_target_length - 2:
                     b_ids = b_ids[: data_args.max_target_length - 2]
 
-                input_ids = a_ids + [150001, 150004] + b_ids + [150005]
+                input_ids = tokenizer.build_inputs_with_special_tokens(a_ids, b_ids)
 
-                context_length = input_ids.index(150004)
+                context_length = input_ids.index(tokenizer.bos_token_id)
                 mask_position = context_length - 1
                 labels = [-100] * context_length + input_ids[mask_position + 1:]
 
@@ -291,7 +311,7 @@ def main():
 
             for k, v in result.items():
                 score_dict[k].append(round(v["f"] * 100, 4))
-            bleu_score = sentence_bleu([list(label)], list(pred))
+            bleu_score = sentence_bleu([list(label)], list(pred), smoothing_function=SmoothingFunction().method3)
             score_dict["bleu-4"].append(round(bleu_score * 100, 4))
 
         for k, v in score_dict.items():

@@ -1,15 +1,16 @@
 export NCCL_SOCKET_IFNAME="eth0,eth,ib,eno1,enp4s0"
+export MASTER_ADDR="192.168.0.59"
+export MASTER_PORT="29500"
 
 torchrun \
     --nproc_per_node=1 \
     --nnodes=2 \
     --node_rank=0 \
-    --master_addr="192.168.0.59" \
-    --master_port=29500 \
-    run_gpt2_chinese_abstract.py \
-    --config_name model/config.json \
-    --tokenizer_name model/vocab.txt \
-    --tokenizer_type bert \
+    --master_addr=$MASTER_ADDR \
+    --master_port=$MASTER_PORT \
+    run_clm.py \
+    --config_name checkpoints/gpt2-chinese \
+    --tokenizer_name checkpoints/gpt2-chinese \
     --train_file data/train.json \
     --validation_file data/valid.json \
     --cache_dir data \
@@ -29,4 +30,4 @@ torchrun \
     --save_steps 5_000 \
     --logging_steps 500 \
     --load_best_model_at_end \
-    --output_dir outputs/gpt2-chinese
+    --output_dir outputs/gpt2-abstract
