@@ -21,8 +21,8 @@ from peft import (
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--wandb", action="store_true", default=False)
-parser.add_argument("--data_path", type=str, default="merge.json")
-parser.add_argument("--output_path", type=str, default="llama-l7b-lora")
+parser.add_argument("--data_path", type=str, default="data/merge.json")
+parser.add_argument("--output_path", type=str, default="/workspace/checkpoints/llama-l7b-lora")
 parser.add_argument("--model_path", type=str, default="decapoda-research/llama-7b-hf")
 parser.add_argument("--eval_steps", type=int, default=200)
 parser.add_argument("--save_steps", type=int, default=200)
@@ -248,7 +248,7 @@ trainer = transformers.Trainer(
         eval_steps=args.eval_steps if VAL_SET_SIZE > 0 else None,
         save_steps=args.save_steps,
         output_dir=OUTPUT_DIR,
-        save_total_limit=30,
+        save_total_limit=5,
         load_best_model_at_end=True if VAL_SET_SIZE > 0 else False,
         ddp_find_unused_parameters=False if ddp else None,
         report_to="wandb" if args.wandb else [],

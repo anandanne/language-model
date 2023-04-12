@@ -1,3 +1,3 @@
 python finetune.py \
-    --data_path merge.json \
+    --data_path data/merge.json \
     --test_size 2000

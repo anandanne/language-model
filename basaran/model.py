@@ -6,6 +6,7 @@ import copy
 import torch
 from tenacity import retry, stop_after_attempt, wait_fixed
 from transformers import (
+    AutoModel,
     AutoModelForCausalLM,
     AutoModelForSeq2SeqLM,
     AutoTokenizer,
@@ -16,6 +17,7 @@ from transformers import (
     TopPLogitsWarper,
 )
 
+from . import MODEL
 from .choice import map_choice
 from .tokenizer import StreamTokenizer
 
@@ -28,7 +30,7 @@ class StreamModel:
         model,
         tokenizer,
         min_tokens=0,
-        max_tokens=16,
+        max_tokens=2048,
         temperature=1.0,
         top_p=1.0,
         n=1,
@@ -54,9 +56,13 @@ class StreamModel:
         self.generate_kwargs.update(kwargs)
 
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
+        self.model = self.model.to(self.device)
 
-    def __call__(self, prompt, **kwargs):
+    def __call__(self, prompt=None, messages=None, **kwargs):
         """Create a completion stream for the provided prompt."""
+        if messages is not None:
+            prompt = self.chat_process(messages)
+
         if isinstance(prompt, str):
             input_ids = self.tokenize(prompt)
         elif isinstance(prompt, torch.Tensor) and prompt.dim() == 1:
@@ -137,6 +143,45 @@ class StreamModel:
                     finish_reason=finish_reasons[i],
                     **samples,
                 )
+
+    def chatglm_chat(self, messages=None, **kwargs):
+        max_tokens = kwargs.get("max_tokens", 2048)
+        history = [x["content"] for x in messages]
+        query = history.pop()
+        assert (
+            len(history) % 2 == 0
+        ), f"History should be even length. current history is: {history}"
+        history = [[history[i], history[i + 1]] for i in range(0, len(history), 2)]
+
+        for response, updates in self.model.stream_chat(
+            self.tokenizer,
+            query,
+            history,
+            max_length=max_tokens,
+            top_p=kwargs.get("top_p", 0.7),
+            temperature=kwargs.get("temperature", 0.95),
+        ):
+            yield map_choice(
+                response,
+                0,
+                chat=True,
+            )
+
+    def chat_process(self, messages):
+        if len(messages) == 1:
+            prompt = messages[0]["content"]
+        else:
+            prompt = ""
+            for i, message in enumerate(messages):
+                if "chatglm" in MODEL:
+                    if i % 2 == 0:
+                        prompt += f"[Round {i//2}]\n问：{message['content']}\n"
+                    else:
+                        prompt += f"答：{message['content']}\n"
+                else:
+                    prompt += f"{message['role']}：{message['content']}\n"
+
+        return prompt
 
     @retry(stop=stop_after_attempt(5), wait=wait_fixed(1))
     def _infer(self, model_fn, **kwargs):
@@ -356,10 +401,15 @@ def load_model(
     if cache_dir:
         kwargs["cache_dir"] = cache_dir
 
-    if tokenizer_name.lower() == "bert":
-        tokenizer = BertTokenizerFast.from_pretrained(name_or_path, **kwargs)
+    if tokenizer_name is not None:
+        if tokenizer_name.lower() == "bert":
+            tokenizer_cls = BertTokenizerFast
+        else:
+            tokenizer_cls = AutoTokenizer
     else:
-        tokenizer = AutoTokenizer.from_pretrained(name_or_path, **kwargs)
+        tokenizer_cls = AutoTokenizer
+
+    tokenizer = tokenizer_cls.from_pretrained(name_or_path, **kwargs)
 
     # Set device mapping and quantization options if CUDA is available.
     if torch.cuda.is_available():
@@ -373,7 +423,10 @@ def load_model(
 
     # Support both decoder-only and encoder-decoder checkpoints.
     try:
-        model = AutoModelForCausalLM.from_pretrained(name_or_path, **kwargs)
+        if "chatglm" in name_or_path:
+            model = AutoModel.from_pretrained(name_or_path, trust_remote_code=True).half()
+        else:
+            model = AutoModelForCausalLM.from_pretrained(name_or_path, **kwargs)
     except ValueError:
         model = AutoModelForSeq2SeqLM.from_pretrained(name_or_path, **kwargs)
 

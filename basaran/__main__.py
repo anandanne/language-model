@@ -152,7 +152,49 @@ def create_completion():
         return create_completion_json(options, template)
 
 
-def create_completion_stream(options, template):
+@app.route("/v1/chat/completions", methods=["GET", "POST"])
+def create_chat_completion():
+    """Create a chat completion for the provided prompt and parameters."""
+    schema = {
+        "messages": list,
+        "min_tokens": int,
+        "max_tokens": int,
+        "temperature": float,
+        "top_p": float,
+        "n": int,
+        "stream": bool,
+        "logprobs": int,
+        "echo": bool,
+    }
+    options = parse_options(schema)
+
+    # Limit maximum resource usage.
+    if options.get("min_tokens", 0) > COMPLETION_MAX_TOKENS:
+        options["min_tokens"] = COMPLETION_MAX_TOKENS
+    if options.get("max_tokens", 0) > COMPLETION_MAX_TOKENS:
+        options["max_tokens"] = COMPLETION_MAX_TOKENS
+    if options.get("n", 0) > COMPLETION_MAX_N:
+        options["n"] = COMPLETION_MAX_N
+    if options.get("logprobs", 0) > COMPLETION_MAX_LOGPROBS:
+        options["logprobs"] = COMPLETION_MAX_LOGPROBS
+
+    # Create response body template.
+    template = {
+        "id": f"cmpl-{secrets.token_hex(12)}",
+        "object": "chat.completion",
+        "created": round(time.time()),
+        "model": SERVER_MODEL_NAME,
+        "choices": [],
+    }
+
+    # Return in event stream or plain JSON.
+    if options.pop("stream", False):
+        return create_completion_stream(options, template, chat=True)
+    else:
+        return create_completion_json(options, template, chat=True)
+
+
+def create_completion_stream(options, template, chat=False):
     """Return text completion results in event stream."""
 
     # Serialize data for event stream.
@@ -163,58 +205,78 @@ def create_completion_stream(options, template):
     def stream():
         buffers = {}
         times = {}
-        for choice in stream_model(**options):
-            index = choice["index"]
-            now = time.time_ns()
-            if index not in buffers:
-                buffers[index] = []
-            if index not in times:
-                times[index] = now
-            buffers[index].append(choice)
-
-            # Yield data when exceeded the maximum buffering interval.
-            elapsed = (now - times[index]) // 1_000_000
-            if elapsed > COMPLETION_MAX_INTERVAL:
+        if "chatglm" in MODEL:
+            for choice in stream_model.chatglm_chat(**options):
                 data = template.copy()
-                data["choices"] = [reduce_choice(buffers[index])]
-                yield serialize(data)
-                buffers[index].clear()
-                times[index] = now
-
-        # Yield remaining data in the buffers.
-        for _, buffer in buffers.items():
-            if buffer:
-                data = template.copy()
-                data["choices"] = [reduce_choice(buffer)]
+                data["choices"] = [choice]
                 yield serialize(data)
 
-        yield "data: [DONE]\n\n"
+            yield "data: [DONE]\n\n"
+        else:
+            for choice in stream_model(**options):
+                index = choice["index"]
+                now = time.time_ns()
+                if index not in buffers:
+                    buffers[index] = []
+                if index not in times:
+                    times[index] = now
+                buffers[index].append(choice)
+
+                # Yield data when exceeded the maximum buffering interval.
+                elapsed = (now - times[index]) // 1_000_000
+                if elapsed > COMPLETION_MAX_INTERVAL:
+                    data = template.copy()
+                    data["choices"] = [reduce_choice(buffers[index], chat=chat)]
+                    yield serialize(data)
+                    buffers[index].clear()
+                    times[index] = now
+
+            # Yield remaining data in the buffers.
+            for _, buffer in buffers.items():
+                if buffer:
+                    data = template.copy()
+                    data["choices"] = [reduce_choice(buffer, chat=chat)]
+                    yield serialize(data)
+
+            yield "data: [DONE]\n\n"
 
     return Response(stream(), mimetype="text/event-stream")
 
 
-def create_completion_json(options, template):
+def create_completion_json(options, template, chat=False):
     """Return text completion results in plain JSON."""
 
     # Tokenize the prompt beforehand to count token usage.
-    options["prompt"] = stream_model.tokenize(options["prompt"])
-    prompt_tokens = options["prompt"].shape[-1]
+    if "prompt" in options:
+        options["prompt"] = stream_model.tokenize(options["prompt"])
+        prompt_tokens = options["prompt"].shape[-1]
+    else:
+        prompt_tokens = sum([len(x["content"]) for x in options["messages"]])
     completion_tokens = 0
 
     # Add data to the corresponding buffer according to the index.
     buffers = {}
-    for choice in stream_model(**options):
-        completion_tokens += 1
-        index = choice["index"]
-        if index not in buffers:
-            buffers[index] = []
-        buffers[index].append(choice)
+    if "chatglm" in MODEL:
+        choices = []
+        for choice in stream_model.chatglm_chat(**options):
+            completion_tokens += 1
+            choices = [choice]
 
-    # Merge choices with the same index.
-    data = template.copy()
-    for _, buffer in buffers.items():
-        if buffer:
-            data["choices"].append(reduce_choice(buffer))
+        data = template.copy()
+        data["choices"] = choices
+    else:
+        for choice in stream_model.chatglm_chat(**options):
+            completion_tokens += 1
+            index = choice["index"]
+            if index not in buffers:
+                buffers[index] = []
+            buffers[index].append(choice)
+
+        # Merge choices with the same index.
+        data = template.copy()
+        for _, buffer in buffers.items():
+            if buffer:
+                data["choices"].append(reduce_choice(buffer, chat=chat))
 
     # Include token usage info.
     data["usage"] = {

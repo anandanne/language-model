@@ -11,14 +11,19 @@ def map_choice(
     top_logprobs=None,
     text_offset=None,
     finish_reason=None,
+    chat=False,
 ):
     """Create a choice object from model outputs."""
     choice = {
-        "text": text,
         "index": index,
         "logprobs": None,
         "finish_reason": finish_reason,
     }
+
+    if chat:
+        choice["message"] = {"role": "assistant", "content": text}
+    else:
+        choice["text"] = text
 
     # Include log probabilities of the selected and most likely tokens.
     if (
@@ -37,7 +42,7 @@ def map_choice(
     return choice
 
 
-def reduce_choice(choices):
+def reduce_choice(choices, chat=False):
     """Merge a list of choices into a single choice object."""
     buffer = []
     index = 0
@@ -60,12 +65,17 @@ def reduce_choice(choices):
             text_offset += logprobs["text_offset"]
 
     # Create reduced object with the last seen index and finish reason.
+    text = "".join(buffer)
     reduced = {
-        "text": "".join(buffer),
         "index": index,
         "logprobs": None,
         "finish_reason": finish_reason,
     }
+    if chat:
+        reduced["message"] = {"role": "assistant", "content": text}
+    else:
+        reduced["text"] = text
+
     if tokens:
         reduced["logprobs"] = {
             "tokens": tokens,
