@@ -11,8 +11,11 @@ BALANCE_API_URL = "https://api.openai.com/dashboard/billing/credit_grants"
 USAGE_API_URL = "https://api.openai.com/dashboard/billing/usage"
 HISTORY_DIR = Path("history")
 TEMPLATES_DIR = "/workspace/demo/templates"
+
 CHATGLM_6B_COMPLETION_URL = "http://192.168.0.53:80/v1/chat/completions"
 # CHATGLM_6B_COMPLETION_URL = None
+LLAMA_7B_COMPLETION_URL = "http://192.168.0.59:80/v1/chat/completions"
+# LLAMA_7B_COMPLETION_URL = None
 
 # 错误信息
 STANDARD_ERROR_MSG = "☹️发生了错误："  # 错误信息的标准前缀

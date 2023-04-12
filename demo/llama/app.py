@@ -410,10 +410,10 @@ with gr.Blocks() as demo:
                 + [input_component_column]
             ),  # type: ignore
             _js=f"""() => {json.dumps([
-                                          getattr(component, "cleared_value", None) for component in input_components_except_states]
-                                      + ([gr.Column.update(visible=True)])
-                                      + ([])
-                                      )}
+                getattr(component, "cleared_value", None) for component in input_components_except_states]
+                + ([gr.Column.update(visible=True)])
+                + ([])
+                )}
             """,
         )
         clear_history.click(lambda: (None, None), None, [history, chatbot], queue=False)

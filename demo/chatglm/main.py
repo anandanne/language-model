@@ -10,7 +10,7 @@ from pydantic import BaseModel
 from sse_starlette.sse import EventSourceResponse
 from transformers import AutoModel, AutoTokenizer
 
-model_path = "/workspace/checkpoints/chatglm-6b"
+model_path = "checkpoints/chatglm-6b"
 tokenizer = AutoTokenizer.from_pretrained(model_path, trust_remote_code=True)
 model = AutoModel.from_pretrained(model_path, trust_remote_code=True).half().cuda()
 
@@ -92,7 +92,7 @@ async def completions(body: Body, request: Request):
                 return
             yield serialize(data)
 
-        yield "data: [DONE]\n\n"
+        yield ""
 
     if body.stream:
         return EventSourceResponse(event_generator())

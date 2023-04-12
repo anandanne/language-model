@@ -212,18 +212,18 @@ class ChatGLMClient(BaseLLMModel):
             else:
                 model_source = f"THUDM/{model_name}"
             self.tokenizer = AutoTokenizer.from_pretrained(
-                model_source, trust_remote_code=True
+                model_source, trust_remote_code=True, cache_dir="checkpoints"
             )
             quantified = False
             if "int4" in model_name:
                 quantified = True
             if quantified:
                 model = AutoModel.from_pretrained(
-                    model_source, trust_remote_code=True
+                    model_source, trust_remote_code=True, cache_dir="checkpoints"
                 ).half()
             else:
                 model = AutoModel.from_pretrained(
-                    model_source, trust_remote_code=True
+                    model_source, trust_remote_code=True, cache_dir="checkpoints"
                 ).half()
             if torch.cuda.is_available():
                 # run on CUDA
@@ -238,14 +238,6 @@ class ChatGLMClient(BaseLLMModel):
                 logging.info("GPU is not available, using CPU")
             model = model.eval()
             self.model = model
-
-        else:
-            import openai
-
-            openai.api_base = self.api_url
-            # Enter any non-empty API key to pass the client library's check.
-            openai.api_key = "xxx"
-            self.completion = openai.ChatCompletion
 
     def _get_glm_style_input(self):
         history = [x["content"] for x in self.history]
@@ -278,13 +270,25 @@ class ChatGLMClient(BaseLLMModel):
         return response, total_token_count
 
     def get_answer_stream_iter(self):
-        response = self._get_response(stream=True)
-        if response is not None:
-            iter = self._decode_chat_response(response)
-            for i in iter:
-                yield i
+        if self.api_url is None:
+            history, query = self._get_glm_style_input()
+            for response, history in self.model.stream_chat(
+                self.tokenizer,
+                query,
+                history,
+                max_length=self.token_upper_limit,
+                top_p=self.top_p,
+                temperature=self.temperature,
+            ):
+                yield response
         else:
-            yield STANDARD_ERROR_MSG + GENERAL_ERROR_MSG
+            response = self._get_response(stream=True)
+            if response is not None:
+                iter = self._decode_chat_response(response)
+                for i in iter:
+                    yield i
+            else:
+                yield STANDARD_ERROR_MSG + GENERAL_ERROR_MSG
 
     @shared.state.switching_api_key  # 在不开启多账号模式的时候，这个装饰器不会起作用
     def _get_response(self, stream=False):
@@ -336,7 +340,11 @@ class ChatGLMClient(BaseLLMModel):
                 chunk = chunk.decode()
                 chunk_length = len(chunk)
                 try:
-                    chunk = json.loads(chunk[6:])
+                    chunk = chunk[6:]
+                    if len(chunk) == 0:
+                        continue
+                    else:
+                        chunk = json.loads(chunk)
                 except json.JSONDecodeError:
                     continue
                 if chunk_length > 6 and "message" in chunk["choices"][0]:
@@ -356,86 +364,90 @@ class LLaMAClient(BaseLLMModel):
         lora_path=None,
     ) -> None:
         super().__init__(model_name=model_name)
-        try:
-            from lmflow.datasets.dataset import Dataset
-            from lmflow.pipeline.auto_pipeline import AutoPipeline
-            from lmflow.models.auto_model import AutoModel
-            from lmflow.args import ModelArguments, DatasetArguments, InferencerArguments
-        except ImportError:
-            raise ValueError(
-                "Could not import lmflow. "
-                "Please it install it with `pip install git+https://github.com/OptimalScale/LMFlow.git`."
+        self.api_url = LLAMA_7B_COMPLETION_URL
+        self.max_generation_token = 1000
+        self.end_string = "\n\n"
+
+        if self.api_url is None:
+            try:
+                from lmflow.datasets.dataset import Dataset
+                from lmflow.pipeline.auto_pipeline import AutoPipeline
+                from lmflow.models.auto_model import AutoModel
+                from lmflow.args import ModelArguments, DatasetArguments, InferencerArguments
+            except ImportError:
+                raise ValueError(
+                    "Could not import lmflow. "
+                    "Please it install it with `pip install git+https://github.com/OptimalScale/LMFlow.git`."
+                )
+
+            model_path = None
+            if os.path.exists("checkpoints"):
+                model_dirs = os.listdir("checkpoints")
+                if model_name in model_dirs:
+                    model_path = f"checkpoints/{model_name}"
+            if model_path is not None:
+                model_source = model_path
+            else:
+                model_source = f"decapoda-research/{model_name}"
+                # raise Exception(f"models目录下没有这个模型: {model_name}")
+            if lora_path is not None:
+                lora_path = f"lora/{lora_path}"
+
+            pipeline_name = "inferencer"
+            model_args = ModelArguments(
+                model_name_or_path=model_source,
+                lora_model_path=lora_path,
+                model_type=None,
+                config_overrides=None,
+                config_name=None,
+                tokenizer_name=None,
+                cache_dir="checkpoints",
+                use_fast_tokenizer=True,
+                model_revision='main',
+                use_auth_token=False,
+                torch_dtype=None,
+                use_lora=False,
+                lora_r=8,
+                lora_alpha=32,
+                lora_dropout=0.1,
+                use_ram_optimized_load=True
+            )
+            pipeline_args = InferencerArguments(
+                local_rank=0,
+                random_seed=1,
+                deepspeed='configs/ds_config_chatbot.json',
+                mixed_precision='bf16',
             )
 
-        model_path = None
-        if os.path.exists("checkpoints"):
-            model_dirs = os.listdir("checkpoints")
-            if model_name in model_dirs:
-                model_path = f"checkpoints/{model_name}"
-        if model_path is not None:
-            model_source = model_path
-        else:
-            model_source = f"decapoda-research/{model_name}"
-            # raise Exception(f"models目录下没有这个模型: {model_name}")
-        if lora_path is not None:
-            lora_path = f"lora/{lora_path}"
-        self.max_generation_token = 1000
-        pipeline_name = "inferencer"
-        model_args = ModelArguments(
-            model_name_or_path=model_source,
-            lora_model_path=lora_path,
-            model_type=None,
-            config_overrides=None,
-            config_name=None,
-            tokenizer_name=None,
-            cache_dir=None,
-            use_fast_tokenizer=True,
-            model_revision='main',
-            use_auth_token=False,
-            torch_dtype=None,
-            use_lora=False,
-            lora_r=8,
-            lora_alpha=32,
-            lora_dropout=0.1,
-            use_ram_optimized_load=True
-        )
-        pipeline_args = InferencerArguments(
-            local_rank=0,
-            random_seed=1,
-            deepspeed='configs/ds_config_chatbot.json',
-            mixed_precision='bf16',
-        )
+            with open(pipeline_args.deepspeed, "r") as f:
+                ds_config = json.load(f)
 
-        with open(pipeline_args.deepspeed, "r") as f:
-            ds_config = json.load(f)
+            self.model = AutoModel.get_model(
+                model_args,
+                tune_strategy="none",
+                ds_config=ds_config,
+            )
 
-        self.model = AutoModel.get_model(
-            model_args,
-            tune_strategy="none",
-            ds_config=ds_config,
-        )
+            # We don't need input data
+            data_args = DatasetArguments(dataset_path=None)
+            self.dataset = Dataset(data_args)
 
-        # We don't need input data
-        data_args = DatasetArguments(dataset_path=None)
-        self.dataset = Dataset(data_args)
+            self.inferencer = AutoPipeline.get_pipeline(
+                pipeline_name=pipeline_name,
+                model_args=model_args,
+                data_args=data_args,
+                pipeline_args=pipeline_args,
+            )
 
-        self.inferencer = AutoPipeline.get_pipeline(
-            pipeline_name=pipeline_name,
-            model_args=model_args,
-            data_args=data_args,
-            pipeline_args=pipeline_args,
-        )
+            # Chats
+            model_name = model_args.model_name_or_path
+            if model_args.lora_model_path is not None:
+                model_name += f" + {model_args.lora_model_path}"
 
-        # Chats
-        model_name = model_args.model_name_or_path
-        if model_args.lora_model_path is not None:
-            model_name += f" + {model_args.lora_model_path}"
-
-        # context = (
-        #     "You are a helpful assistant who follows the given instructions"
-        #     " unconditionally."
-        # )
-        self.end_string = "\n\n"
+            # context = (
+            #     "You are a helpful assistant who follows the given instructions"
+            #     " unconditionally."
+            # )
 
     def _get_llama_style_input(self):
         history = []
@@ -449,41 +461,124 @@ class LLaMAClient(BaseLLMModel):
         return context
 
     def get_answer_at_once(self):
-        context = self._get_llama_style_input()
+        if self.api_url is None:
+            context = self._get_llama_style_input()
 
-        input_dataset = self.dataset.from_dict(
-            {"type": "text_only", "instances": [{"text": context}]}
-        )
-
-        output_dataset = self.inferencer.inference(
-            model=self.model,
-            dataset=input_dataset,
-            max_new_tokens=self.max_generation_token,
-            temperature=self.temperature,
-        )
-
-        response = output_dataset.to_dict()["instances"][0]["text"]
-        return response, len(response)
-
-    def get_answer_stream_iter(self):
-        context = self._get_llama_style_input()
-        partial_text = ""
-        step = 1
-        for _ in range(0, self.max_generation_token, step):
             input_dataset = self.dataset.from_dict(
-                {"type": "text_only", "instances": [{"text": context + partial_text}]}
+                {"type": "text_only", "instances": [{"text": context}]}
             )
+
             output_dataset = self.inferencer.inference(
                 model=self.model,
                 dataset=input_dataset,
-                max_new_tokens=step,
+                max_new_tokens=self.max_generation_token,
                 temperature=self.temperature,
             )
+
             response = output_dataset.to_dict()["instances"][0]["text"]
-            if response == "" or response == self.end_string:
-                break
-            partial_text += response
-            yield partial_text
+            total_token_count = len(response)
+        else:
+            response = self._get_response()
+            response = json.loads(response.text)
+            response = response["choices"][0]["message"]["content"]
+            total_token_count = response["usage"]["total_tokens"]
+
+        return response, total_token_count
+
+    def get_answer_stream_iter(self):
+        if self.api_url is None:
+            context = self._get_llama_style_input()
+            partial_text = ""
+            step = 1
+            for _ in range(0, self.max_generation_token, step):
+                input_dataset = self.dataset.from_dict(
+                    {"type": "text_only", "instances": [{"text": context + partial_text}]}
+                )
+                output_dataset = self.inferencer.inference(
+                    model=self.model,
+                    dataset=input_dataset,
+                    max_new_tokens=step,
+                    temperature=self.temperature,
+                )
+                response = output_dataset.to_dict()["instances"][0]["text"]
+                if response == "" or response == self.end_string:
+                    break
+                partial_text += response
+                yield partial_text
+        else:
+            response = self._get_response(stream=True)
+            if response is not None:
+                iter = self._decode_chat_response(response)
+                for i in iter:
+                    yield i
+            else:
+                yield STANDARD_ERROR_MSG + GENERAL_ERROR_MSG
+
+    @shared.state.switching_api_key  # 在不开启多账号模式的时候，这个装饰器不会起作用
+    def _get_response(self, stream=False):
+        history = self.history
+        logging.debug(colorama.Fore.YELLOW + f"{history}" + colorama.Fore.RESET)
+        headers = {
+            "Content-Type": "application/json",
+        }
+
+        payload = {
+            "messages": history,
+            "temperature": self.temperature,
+            "top_p": self.top_p,
+            "n": self.n_choices,
+            "stream": stream,
+        }
+
+        if self.max_generation_token is not None:
+            payload["max_tokens"] = self.max_generation_token
+        if self.stop_sequence is not None:
+            payload["stop"] = self.stop_sequence
+
+        if stream:
+            timeout = TIMEOUT_STREAMING
+        else:
+            timeout = TIMEOUT_ALL
+
+        with retrieve_proxy():
+            try:
+                response = requests.post(
+                    self.api_url,
+                    headers=headers,
+                    json=payload,
+                    stream=stream,
+                    timeout=timeout,
+                )
+            except:
+                return None
+        return response
+
+    def _refresh_header(self):
+        self.headers = {
+            "Content-Type": "application/json",
+        }
+
+    def _decode_chat_response(self, response):
+        for chunk in response.iter_lines():
+            if chunk:
+                chunk = chunk.decode()
+                chunk_length = len(chunk)
+                try:
+                    chunk = chunk[6:]
+                    if len(chunk) == 0:
+                        continue
+                    else:
+                        chunk = json.loads(chunk)
+                except json.JSONDecodeError:
+                    continue
+                if chunk_length > 6 and "message" in chunk["choices"][0]:
+                    if chunk["choices"][0]["finish_reason"] == "stop":
+                        break
+                    try:
+                        yield chunk["choices"][0]["message"]["content"]
+                    except Exception as e:
+                        # logging.error(f"Error: {e}")
+                        continue
 
 
 class ModelManager:
