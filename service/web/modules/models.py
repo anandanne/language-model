@@ -1,8 +1,35 @@
+import datetime
+import json
+import logging
+
 import colorama
+import requests
 
 from . import config
+from . import shared
 from .base_model import BaseLLMModel, ModelType
-from .utils import *
+from .presets import (
+    INITIAL_SYSTEM_PROMPT,
+    STANDARD_ERROR_MSG,
+    GENERAL_ERROR_MSG,
+    CHATGLM_COMPLETION_URL,
+    LLAMA_COMPLETION_URL,
+    FIREFLY_COMPLETION_URL,
+    CONNECTION_TIMEOUT_MSG,
+    ERROR_RETRIEVE_MSG,
+    READ_TIMEOUT_MSG,
+    TIMEOUT_STREAMING,
+    TIMEOUT_ALL,
+    COMPLETION_URL,
+)
+from .utils import (
+    count_token,
+    construct_user,
+    construct_system,
+    get_last_day_of_month,
+    hide_middle_chars,
+    retrieve_proxy,
+)
 
 
 class OpenAIClient(BaseLLMModel):
@@ -284,7 +311,6 @@ class ChatGLMClient(FastAPIClient):
 class LLaMAClient(FastAPIClient):
 
     api_url = LLAMA_COMPLETION_URL
-    lora_path = None
 
 
 class FireflyClient(FastAPIClient):
@@ -294,20 +320,15 @@ class FireflyClient(FastAPIClient):
 
 def get_model(
     model_name,
-    lora_model_path=None,
     access_key=None,
     temperature=None,
     top_p=None,
     system_prompt=None,
-) -> BaseLLMModel:
+):
     msg = f"模型设置为了： {model_name}"
     model_type = ModelType.get_type(model_name)
-    lora_selector_visibility = False
-    lora_choices = []
-    dont_change_lora_selector = False
     if model_type != ModelType.OpenAI:
         config.local_embedding = True
-    # del current_model.model
     model = None
     try:
         if model_type == ModelType.OpenAI:
@@ -325,29 +346,14 @@ def get_model(
         elif model_type == ModelType.Bloom:
             logging.info(f"正在加载ChatGLM模型: {model_name}")
             model = FireflyClient(model_name)
-        elif model_type == ModelType.LLaMA and lora_model_path == "":
-            msg = f"现在请为 {model_name} 选择LoRA模型"
-            logging.info(msg)
-            lora_selector_visibility = True
-            if os.path.isdir("lora"):
-                lora_choices = get_file_names("lora", plain=True, filetypes=[""])
-            lora_choices = ["No LoRA"] + lora_choices
-        elif model_type == ModelType.LLaMA and lora_model_path != "":
-            logging.info(f"正在加载LLaMA模型: {model_name} + {lora_model_path}")
-            dont_change_lora_selector = True
-            if lora_model_path == "No LoRA":
-                lora_model_path = None
-                msg += " + No LoRA"
-            else:
-                msg += f" + {lora_model_path}"
-            model = LLaMAClient(model_name, lora_model_path)
+        elif model_type == ModelType.LLaMA:
+            logging.info(f"正在加载LLaMA模型: {model_name}")
+            model = LLaMAClient(model_name)
         elif model_type == ModelType.Unknown:
             raise ValueError(f"未知模型: {model_name}")
         logging.info(msg)
     except Exception as e:
         logging.error(e)
         msg = f"{STANDARD_ERROR_MSG}: {e}"
-    if dont_change_lora_selector:
-        return model, msg
-    else:
-        return model, msg, gr.Dropdown.update(choices=lora_choices, visible=lora_selector_visibility)
+
+    return model, msg

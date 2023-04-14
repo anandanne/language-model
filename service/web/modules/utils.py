@@ -3,11 +3,13 @@ import datetime
 import html
 import json
 import logging
+import os
 import re
 import subprocess
 import sys
-from typing import TYPE_CHECKING, List
+from typing import TYPE_CHECKING, List, Any
 
+import gradio as gr
 import mdtex2html
 import pandas as pd
 import requests
@@ -20,7 +22,12 @@ from pypinyin import lazy_pinyin
 
 from . import shared
 from .config import retrieve_proxy
-from .presets import *
+from .presets import (
+    ALREADY_CONVERTED_MARK,
+    HISTORY_DIR,
+    TEMPLATES_DIR,
+
+)
 
 if TYPE_CHECKING:
     from typing import TypedDict
@@ -28,7 +35,7 @@ if TYPE_CHECKING:
 
     class DataframeData(TypedDict):
         headers: List[str]
-        data: List[List[str | int | bool]]
+        data: List[List[Any]]
 
 
 def count_token(message):
@@ -196,7 +203,6 @@ def get_history_names(plain=False, user_name=""):
 
 def load_template(filename, mode=0):
     logging.debug(f"加载模板文件{filename}，模式为{mode}（0为返回字典和下拉菜单，1为返回下拉菜单，2为返回字典）")
-    lines = []
     if filename.endswith(".json"):
         with open(os.path.join(TEMPLATES_DIR, filename), "r", encoding="utf8") as f:
             lines = json.load(f)

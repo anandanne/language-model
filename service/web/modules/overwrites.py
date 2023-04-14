@@ -1,8 +1,14 @@
-from typing import Tuple
+import logging
+from typing import List
 
+import gradio as gr
 from llama_index import Prompt
 
-from .llama_func import *
+from .utils import (
+    detect_converted_mark,
+    convert_asis,
+    convert_mdtext,
+)
 
 
 def compact_text_chunks(self, prompt: Prompt, text_chunks: List[str]) -> List[str]:

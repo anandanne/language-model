@@ -1,13 +1,41 @@
-from __future__ import annotations
-
+import json
+import logging
+import os
 from enum import Enum
 
 import colorama
+import tiktoken
 import urllib3
 from duckduckgo_search import ddg
+from llama_index import PromptHelper
 
-from .llama_func import *
-from .utils import *
+from . import shared
+from .config import local_embedding
+from .llama_func import construct_index
+from .presets import (
+    MODEL_TOKEN_LIMIT,
+    BILLING_NOT_APPLICABLE_MSG,
+    DEFAULT_TOKEN_LIMIT,
+    PROMPT_TEMPLATE,
+    WEBSEARCH_PTOMPT_TEMPLATE,
+    STANDARD_ERROR_MSG,
+    NO_INPUT_MSG,
+    NO_APIKEY_MSG,
+    TOKEN_OFFSET,
+    REDUCE_TOKEN_FACTOR,
+    HISTORY_DIR,
+)
+from .utils import (
+    construct_user,
+    construct_assistant,
+    count_token,
+    retrieve_proxy,
+    add_source_numbers,
+    add_details,
+    replace_today,
+    hide_middle_chars,
+    save_file,
+)
 
 
 class ModelType(Enum):
@@ -42,20 +70,22 @@ class BaseLLMModel:
         top_p=1.0,
         n_choices=1,
         stop=None,
-        max_generation_token=None,
         presence_penalty=0,
         frequency_penalty=0,
         logit_bias=None,
         user="",
     ) -> None:
+
         self.history = []
         self.all_token_counts = []
         self.model_name = model_name
         self.model_type = ModelType.get_type(model_name)
+
         try:
             self.token_upper_limit = MODEL_TOKEN_LIMIT[model_name]
         except KeyError:
             self.token_upper_limit = DEFAULT_TOKEN_LIMIT
+
         self.interrupted = False
         self.system_prompt = system_prompt
         self.api_key = None
@@ -125,10 +155,12 @@ class BaseLLMModel:
             chatbot[-1] = (chatbot[-1][0], partial_text + display_append)
             self.all_token_counts[-1] += 1
             status_text = self.token_message()
+
             yield get_return_value()
             if self.interrupted:
                 self.recover()
                 break
+
         self.history.append(construct_assistant(partial_text))
 
     def next_chatbot_at_once(self, inputs, chatbot, fake_input=None, display_append=""):
@@ -136,20 +168,25 @@ class BaseLLMModel:
             chatbot.append((fake_input, ""))
         else:
             chatbot.append((inputs, ""))
+
         if fake_input is not None:
             user_token_count = self.count_token(fake_input)
         else:
             user_token_count = self.count_token(inputs)
+
         self.all_token_counts.append(user_token_count)
         ai_reply, total_token_count = self.get_answer_at_once()
         self.history.append(construct_assistant(ai_reply))
+
         if fake_input is not None:
             self.history[-2] = construct_user(fake_input)
         chatbot[-1] = (chatbot[-1][0], ai_reply + display_append)
+
         if fake_input is not None:
             self.all_token_counts[-1] += count_token(construct_assistant(ai_reply))
         else:
             self.all_token_counts[-1] = total_token_count - sum(self.all_token_counts)
+
         status_text = self.token_message()
         return chatbot, status_text
 
@@ -431,17 +468,14 @@ class BaseLLMModel:
 
     def delete_last_conversation(self, chatbot):
         if len(chatbot) > 0 and STANDARD_ERROR_MSG in chatbot[-1][1]:
-            msg = "由于包含报错信息，只删除chatbot记录"
             chatbot.pop()
             return chatbot, self.history
         if len(self.history) > 0:
             self.history.pop()
             self.history.pop()
         if len(chatbot) > 0:
-            msg = "删除了一组chatbot对话"
             chatbot.pop()
         if len(self.all_token_counts) > 0:
-            msg = "删除了一组对话的token计数记录"
             self.all_token_counts.pop()
         msg = "删除了一组对话"
         return chatbot, msg

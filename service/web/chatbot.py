@@ -1,8 +1,81 @@
+import logging
+
+import gradio as gr
+from llama_index import PromptHelper
+
 from modules import config
-from modules.config import *
+from modules import shared
+from modules.config import (
+    my_api_key,
+    multi_api_key,
+    advance_docs,
+    update_doc_config,
+    dockerflag,
+    authflag,
+    auth_list,
+)
 from modules.models import get_model
-from modules.overwrites import *
-from modules.presets import MODELS, DEFAULT_MODEL
+from modules.overwrites import (
+    postprocess,
+    compact_text_chunks,
+    reload_javascript,
+)
+from modules.presets import (
+    MODELS,
+    DEFAULT_MODEL,
+    small_and_beautiful_theme,
+    CHUANHU_TITLE,
+    HIDE_MY_KEY,
+    ENABLE_STREAMING_OPTION,
+    REPLY_LANGUAGES,
+    INITIAL_SYSTEM_PROMPT,
+    FOOTER,
+    CHUANHU_DESCRIPTION,
+    APPEARANCE_SWITCHER,
+    CONCURRENT_COUNT,
+
+)
+from modules.utils import (
+    load_template,
+    get_template_names,
+    get_geoip,
+    hide_middle_chars,
+    get_history_names,
+    predict,
+    versions_html,
+    start_outputing,
+    end_outputing,
+    reset_textbox,
+    transfer_input,
+    billing_info,
+    load_chat_history,
+    interrupt,
+    reset,
+    retry,
+    delete_last_conversation,
+    delete_first_conversation,
+    set_key,
+    set_single_turn,
+    set_system_prompt,
+    get_template_content,
+    save_chat_history,
+    set_temperature,
+    set_top_p,
+    set_n_choices,
+    set_token_upper_limit,
+    set_stop_sequence,
+    set_logit_bias,
+    set_max_tokens,
+    set_presence_penalty,
+    export_markdown,
+    set_frequency_penalty,
+    set_user_identifier,
+    reset_default,
+    change_api_host,
+    change_proxy,
+
+)
+
 
 gr.Chatbot.postprocess = postprocess
 PromptHelper.compact_text_chunks = compact_text_chunks
@@ -91,13 +164,6 @@ with gr.Blocks(css=customCSS, theme=small_and_beautiful_theme) as demo:
                         multiselect=False,
                         value=MODELS[DEFAULT_MODEL],
                         interactive=True
-                    )
-                    lora_select_dropdown = gr.Dropdown(
-                        label="选择LoRA模型",
-                        choices=[],
-                        multiselect=False,
-                        interactive=True,
-                        visible=False
                     )
                     with gr.Row():
                         use_streaming_checkbox = gr.Checkbox(
@@ -375,13 +441,12 @@ with gr.Blocks(css=customCSS, theme=small_and_beautiful_theme) as demo:
     keyTxt.change(set_key, [current_model, keyTxt], [user_api_key, status_display]).then(**get_usage_args)
     keyTxt.submit(**get_usage_args)
     single_turn_checkbox.change(set_single_turn, [current_model, single_turn_checkbox], None)
-    model_select_dropdown.change(get_model,
-                                 [model_select_dropdown, lora_select_dropdown, user_api_key, temperature_slider,
-                                  top_p_slider, systemPromptTxt], [current_model, status_display, lora_select_dropdown],
-                                 show_progress=True)
-    lora_select_dropdown.change(get_model,
-                                [model_select_dropdown, lora_select_dropdown, user_api_key, temperature_slider,
-                                 top_p_slider, systemPromptTxt], [current_model, status_display], show_progress=True)
+    model_select_dropdown.change(
+        get_model,
+        [model_select_dropdown, user_api_key, temperature_slider, top_p_slider, systemPromptTxt],
+        [current_model, status_display],
+        show_progress=True
+    )
 
     # Template
     systemPromptTxt.change(set_system_prompt, [current_model, systemPromptTxt], None)

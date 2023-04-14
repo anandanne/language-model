@@ -71,23 +71,10 @@ MODELS = [
     "gpt-4-0314",
     "gpt-4-32k",
     "gpt-4-32k-0314",
-    "chatglm-6b-int4",
-    "chatglm-6b-int4-qe",
-    "llama-7b-hf-int4",
-    "llama-7b-hf-int8",
-    "llama-13b-hf",
-    "llama-13b-hf-int4",
-    "llama-30b-hf",
-    "llama-30b-hf-int4",
-    "llama-65b-hf",
 ]  # 可选的模型
 
-os.makedirs("checkpoints", exist_ok=True)
+
 os.makedirs("history", exist_ok=True)
-for dir_name in os.listdir("checkpoints"):
-    if os.path.isdir(os.path.join("checkpoints", dir_name)):
-        if dir_name not in MODELS:
-            MODELS.append(dir_name)
 
 DEFAULT_MODEL = 0  # 默认的模型在MODELS中的序号，从0开始数
 
