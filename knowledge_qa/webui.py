@@ -14,7 +14,7 @@ def get_file_list():
 
 file_list = get_file_list()
 embedding_model_dict_list = list(kb.embedding_model_dict)
-llm_model_dict_list = ["chatglm-6b"]
+llm_model_dict_list = list(kb.llm_model_dict)
 
 
 def upload_file(file):

@@ -144,11 +144,11 @@ if __name__ == "__main__":
 
     llm = SelfHostedOpenAI(
         model_name="xxx",
-        openai_api_base="http://192.168.20.75/v1",
+        openai_api_base="http://192.168.0.53/v1",
         openai_api_key="xxx",
         streaming=True,
         verbose=True,
         callback_manager=CallbackManager([StreamingStdOutCallbackHandler()]),
     )
 
-    print(llm("为了回收某石英脉型金矿中的金,在粗磨条件下进行了尼尔森选矿机选矿试验研究。"))
+    print(llm("你好"))

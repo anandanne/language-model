@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import csv
 import datetime
 import html
@@ -20,9 +18,9 @@ from pygments.formatters import HtmlFormatter
 from pygments.lexers import get_lexer_by_name
 from pypinyin import lazy_pinyin
 
-from demo.modules import shared
-from demo.modules.config import retrieve_proxy
-from demo.modules.presets import *
+from . import shared
+from .config import retrieve_proxy
+from .presets import *
 
 if TYPE_CHECKING:
     from typing import TypedDict
@@ -449,3 +447,99 @@ def get_last_day_of_month(any_day):
 def get_model_source(model_name, alternative_source):
     if model_name == "gpt2-medium":
         return "https://huggingface.co/gpt2-medium"
+
+
+def predict(current_model, *args):
+    iter = current_model.predict(*args)
+    for i in iter:
+        yield i
+
+
+def billing_info(current_model):
+    return current_model.billing_info()
+
+
+def set_key(current_model, *args):
+    return current_model.set_key(*args)
+
+
+def load_chat_history(current_model, *args):
+    return current_model.load_chat_history(*args)
+
+
+def interrupt(current_model, *args):
+    return current_model.interrupt(*args)
+
+
+def reset(current_model, *args):
+    return current_model.reset(*args)
+
+
+def retry(current_model, *args):
+    iter = current_model.retry(*args)
+    for i in iter:
+        yield i
+
+
+def delete_first_conversation(current_model, *args):
+    return current_model.delete_first_conversation(*args)
+
+
+def delete_last_conversation(current_model, *args):
+    return current_model.delete_last_conversation(*args)
+
+
+def set_system_prompt(current_model, *args):
+    return current_model.set_system_prompt(*args)
+
+
+def save_chat_history(current_model, *args):
+    return current_model.save_chat_history(*args)
+
+
+def export_markdown(current_model, *args):
+    return current_model.export_markdown(*args)
+
+
+def set_token_upper_limit(current_model, *args):
+    return current_model.set_token_upper_limit(*args)
+
+
+def set_temperature(current_model, *args):
+    current_model.set_temperature(*args)
+
+
+def set_top_p(current_model, *args):
+    current_model.set_top_p(*args)
+
+
+def set_n_choices(current_model, *args):
+    current_model.set_n_choices(*args)
+
+
+def set_stop_sequence(current_model, *args):
+    current_model.set_stop_sequence(*args)
+
+
+def set_max_tokens(current_model, *args):
+    current_model.set_max_tokens(*args)
+
+
+def set_presence_penalty(current_model, *args):
+    current_model.set_presence_penalty(*args)
+
+
+def set_frequency_penalty(current_model, *args):
+    current_model.set_frequency_penalty(*args)
+
+
+def set_logit_bias(current_model, *args):
+    current_model.set_logit_bias(*args)
+
+
+def set_user_identifier(current_model, *args):
+    current_model.set_user_identifier(*args)
+
+
+def set_single_turn(current_model, *args):
+    current_model.set_single_turn(*args)

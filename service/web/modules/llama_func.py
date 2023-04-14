@@ -8,8 +8,8 @@ from llama_index import (
 from llama_index import download_loader
 from tqdm import tqdm
 
-from demo.modules.config import local_embedding
-from demo.modules.utils import *
+from .config import local_embedding
+from .utils import *
 
 
 def get_index_name(file_src):

@@ -1,10 +1,8 @@
-from __future__ import annotations
-
 from typing import Tuple
 
 from llama_index import Prompt
 
-from demo.modules.llama_func import *
+from .llama_func import *
 
 
 def compact_text_chunks(self, prompt: Prompt, text_chunks: List[str]) -> List[str]:
@@ -37,7 +35,7 @@ def postprocess(
     return y
 
 
-with open("/workspace/demo/assets/custom.js", "r", encoding="utf-8") as f, open("/workspace/demo/assets/Kelpy-Codos.js", "r", encoding="utf-8") as f2:
+with open("web/assets/custom.js", "r", encoding="utf-8") as f, open("web/assets/Kelpy-Codos.js", "r", encoding="utf-8") as f2:
     customJS = f.read()
     kelpyCodos = f2.read()
 

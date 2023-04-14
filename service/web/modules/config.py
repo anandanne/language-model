@@ -6,7 +6,7 @@ from contextlib import contextmanager
 
 import commentjson as json
 
-from demo.modules import shared
+from . import shared
 
 __all__ = [
     "my_api_key",

@@ -131,7 +131,7 @@ def answer_fn(
 
 
 def main():
-    questions = pd.read_csv("./questions.csv")
+    questions = pd.read_csv("questions.csv")
     questions["vicuna"] = questions["question"].apply(answer_fn)
     questions.to_csv("./questions.csv", index=False)
 

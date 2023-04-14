@@ -1,20 +1,20 @@
 import os
 
+import sentence_transformers
 import torch
 from langchain.chains import RetrievalQA
 from langchain.document_loaders import UnstructuredFileLoader
 from langchain.embeddings.huggingface import HuggingFaceEmbeddings
 from langchain.prompts import PromptTemplate
 from langchain.vectorstores import FAISS
-from sentence_transformers import SentenceTransformer
 
-from chatglm import ChatGLM
+from chatglm_llm import ChatGLM
 
 # Global Parameters
 EMBEDDING_MODEL = "text2vec"
 VECTOR_SEARCH_TOP_K = 6
 LLM_MODEL = "chatglm-6b"
-LLM_WINDOW_SIZE = 3
+LLM_HISTORY_LEN = 3
 DEVICE = "cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu"
 
 # Show reply with source text from input document
@@ -23,19 +23,24 @@ REPLY_WITH_SOURCE = True
 embedding_model_dict = {
     "ernie-tiny": "nghuyong/ernie-3.0-nano-zh",
     "ernie-base": "nghuyong/ernie-3.0-base-zh",
-    "text2vec": "GanymedeNil/text2vec-large-chinese",
+    "text2vec": "/workspace/checkpoints/text2vec-large-chinese",
+}
+
+llm_model_dict = {
+    "chatglm-6b": "THUDM/chatglm-6b",
 }
 
 
-def init_cfg(LLM_MODEL, EMBEDDING_MODEL, LLM_WINDOW_SIZE, V_SEARCH_TOP_K=6):
+def init_cfg(LLM_MODEL, EMBEDDING_MODEL, LLM_HISTORY_LEN, V_SEARCH_TOP_K=6):
     global chatglm, embeddings, VECTOR_SEARCH_TOP_K
     VECTOR_SEARCH_TOP_K = V_SEARCH_TOP_K
 
     chatglm = ChatGLM()
-    chatglm.history_len = LLM_WINDOW_SIZE
+    chatglm.history_len = LLM_HISTORY_LEN
 
-    embeddings = HuggingFaceEmbeddings(model_name=embedding_model_dict[EMBEDDING_MODEL])
-    embeddings.client = SentenceTransformer(embeddings.model_name, device=DEVICE)
+    embeddings = HuggingFaceEmbeddings(model_name=embedding_model_dict[EMBEDDING_MODEL], )
+    embeddings.client = sentence_transformers.SentenceTransformer(embeddings.model_name,
+                                                                  device=DEVICE)
 
 
 def init_knowledge_vector_store(filepath: str):
@@ -63,6 +68,7 @@ def init_knowledge_vector_store(filepath: str):
                 print(f"{file} 未能成功加载")
 
     vector_store = FAISS.from_documents(docs, embeddings)
+
     return vector_store
 
 
@@ -95,12 +101,11 @@ def get_knowledge_based_answer(query, vector_store, chat_history=[]):
 
     result = knowledge_chain({"query": query})
     chatglm.history[-1][0] = query
-
     return result, chatglm.history
 
 
 if __name__ == "__main__":
-    init_cfg(LLM_MODEL, EMBEDDING_MODEL, LLM_WINDOW_SIZE)
+    init_cfg(LLM_MODEL, EMBEDDING_MODEL, LLM_HISTORY_LEN)
     vector_store = None
     while not vector_store:
         filepath = input("Input your local knowledge file path 请输入本地知识文件路径：")

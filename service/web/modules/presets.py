@@ -10,12 +10,10 @@ COMPLETION_URL = "https://api.openai.com/v1/chat/completions"
 BALANCE_API_URL = "https://api.openai.com/dashboard/billing/credit_grants"
 USAGE_API_URL = "https://api.openai.com/dashboard/billing/usage"
 HISTORY_DIR = Path("history")
-TEMPLATES_DIR = "/workspace/demo/templates"
+TEMPLATES_DIR = "web/templates"
 
-CHATGLM_6B_COMPLETION_URL = "http://192.168.0.53:80/v1/chat/completions"
-# CHATGLM_6B_COMPLETION_URL = None
-LLAMA_7B_COMPLETION_URL = "http://192.168.0.59:80/v1/chat/completions"
-# LLAMA_7B_COMPLETION_URL = None
+CHATGLM_COMPLETION_URL = os.getenv("CHATGLM_COMPLETION_URL", None)
+LLAMA_COMPLETION_URL = os.getenv("LLAMA_COMPLETION_URL", None)
 
 # 错误信息
 STANDARD_ERROR_MSG = "☹️发生了错误："  # 错误信息的标准前缀
@@ -82,7 +80,6 @@ MODELS = [
 ]  # 可选的模型
 
 os.makedirs("checkpoints", exist_ok=True)
-os.makedirs("lora", exist_ok=True)
 os.makedirs("history", exist_ok=True)
 for dir_name in os.listdir("checkpoints"):
     if os.path.isdir(os.path.join("checkpoints", dir_name)):

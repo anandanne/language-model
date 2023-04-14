@@ -6,8 +6,8 @@ import colorama
 import urllib3
 from duckduckgo_search import ddg
 
-from demo.modules.llama_func import *
-from demo.modules.utils import *
+from .llama_func import *
+from .utils import *
 
 
 class ModelType(Enum):
@@ -176,7 +176,7 @@ class BaseLLMModel:
         if reply_language == "跟随问题语言（不稳定）":
             reply_language = "the same language as the question, such as English, 中文, 日本語, Español, Français, or Deutsch."
         old_inputs = None
-        display_reference = []
+        display_append = []
         limited_context = False
         if files:
             limited_context = True
@@ -216,8 +216,8 @@ class BaseLLMModel:
                 nodes = query_object.retrieve(query_bundle)
             reference_results = [n.node.text for n in nodes]
             reference_results = add_source_numbers(reference_results, use_source=False)
-            display_reference = add_details(reference_results)
-            display_reference = "\n\n" + "".join(display_reference)
+            display_append = add_details(reference_results)
+            display_append = "\n\n" + "".join(display_append)
             inputs = (
                 replace_today(PROMPT_TEMPLATE)
                 .replace("{query_str}", inputs)
@@ -233,11 +233,11 @@ class BaseLLMModel:
                 logging.debug(f"搜索结果{idx + 1}：{result}")
                 domain_name = urllib3.util.parse_url(result["href"]).host
                 reference_results.append([result["body"], result["href"]])
-                display_reference.append(
+                display_append.append(
                     f"{idx+1}. [{domain_name}]({result['href']})\n"
                 )
             reference_results = add_source_numbers(reference_results)
-            display_reference = "\n\n" + "".join(display_reference)
+            display_append = "\n\n" + "".join(display_append)
             inputs = (
                 replace_today(WEBSEARCH_PTOMPT_TEMPLATE)
                 .replace("{query}", inputs)
@@ -245,7 +245,7 @@ class BaseLLMModel:
                 .replace("{reply_language}", reply_language)
             )
         else:
-            display_reference = ""
+            display_append = ""
 
         if (
             self.need_api_key and
@@ -281,7 +281,7 @@ class BaseLLMModel:
                     inputs,
                     chatbot,
                     fake_input=old_inputs,
-                    display_append=display_reference,
+                    display_append=display_append,
                 )
                 for chatbot, status_text in iter:
                     yield chatbot, status_text
@@ -291,7 +291,7 @@ class BaseLLMModel:
                     inputs,
                     chatbot,
                     fake_input=old_inputs,
-                    display_append=display_reference,
+                    display_append=display_append,
                 )
                 yield chatbot, status_text
         except Exception as e:

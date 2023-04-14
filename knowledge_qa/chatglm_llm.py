@@ -55,3 +55,9 @@ class ChatGLM(LLM):
         self.history += [[None, response]]
 
         return response
+
+
+chatglm = ChatGLM()
+print(chatglm("你好"))
+print(chatglm("什么是机器学习"))
+print(chatglm("怎么学好他"))

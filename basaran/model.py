@@ -57,6 +57,7 @@ class StreamModel:
 
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
         self.model = self.model.to(self.device)
+        self.model.eval()
 
     def __call__(self, prompt=None, messages=None, **kwargs):
         """Create a completion stream for the provided prompt."""

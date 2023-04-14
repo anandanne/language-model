@@ -1,7 +1,7 @@
 import os
 import queue
 
-from demo.modules.presets import COMPLETION_URL, BALANCE_API_URL, USAGE_API_URL, API_HOST
+from .presets import COMPLETION_URL, BALANCE_API_URL, USAGE_API_URL, API_HOST
 
 
 class State:
