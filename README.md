@@ -32,7 +32,7 @@ docker exec -it llm /bin/bash
 
 针对模型进行纯文本预训练、指令微调和参数高效微调等
 
-## [模型效果](./service/web)
+## [模型效果](./service)
 
 模型生成效果展示
 

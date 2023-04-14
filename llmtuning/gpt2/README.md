@@ -22,13 +22,13 @@
 
 ### 单机单卡训练
 
-```commandline
+```shell
 bash run_gpt2.sh
 ```
 
 ### 单机多卡训练
 
-```commandline
+```shell
 bash run_gpt_ddp.sh
 ```
 
@@ -36,7 +36,7 @@ bash run_gpt_ddp.sh
 
 在每个机器节点上启动，需要修改 `node_rank`
 
-```commandline
+```shell
 bash run_gpt2_multi_nodes.sh
 ```
 
