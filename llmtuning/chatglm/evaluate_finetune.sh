@@ -1,5 +1,4 @@
-PRE_SEQ_LEN=128
-CHECKPOINT=adgen-chatglm-6b-pt-128-2e-2
+CHECKPOINT=adgen-chatglm-6b-ft-1e-4
 STEP=3000
 
 CUDA_VISIBLE_DEVICES=0 python3 main.py \
@@ -9,13 +8,11 @@ CUDA_VISIBLE_DEVICES=0 python3 main.py \
     --overwrite_cache \
     --prompt_column content \
     --response_column summary \
-    --model_name_or_path checkpoints/chatglm-6b \
-    --ptuning_checkpoint ./output/$CHECKPOINT/checkpoint-$STEP \
+    --model_name_or_path ./output/$CHECKPOINT/checkpoint-$STEP  \
     --output_dir ./output/$CHECKPOINT \
     --overwrite_output_dir \
-    --max_source_length 64 \
-    --max_target_length 64 \
+    --max_source_length 256 \
+    --max_target_length 256 \
     --per_device_eval_batch_size 1 \
     --predict_with_generate \
-    --pre_seq_len $PRE_SEQ_LEN \
-    --quantization_bit 4
+    --fp16_full_eval

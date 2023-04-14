@@ -1,7 +1,7 @@
 PRE_SEQ_LEN=8
 LR=1e-2
 
-CUDA_VISIBLE_DEVICES=0 python main.py \
+CUDA_VISIBLE_DEVICES=0 python3 main.py \
     --do_train \
     --train_file $CHAT_TRAIN_DATA \
     --validation_file $CHAT_VAL_DATA \
@@ -9,7 +9,7 @@ CUDA_VISIBLE_DEVICES=0 python main.py \
     --response_column response \
     --history_column history \
     --overwrite_cache \
-    --model_name_or_path /workspace/checkpoints/chatglm-6b \
+    --model_name_or_path checkpoints/chatglm-6b \
     --output_dir $CHECKPOINT_NAME \
     --overwrite_output_dir \
     --max_source_length 256 \

@@ -25,6 +25,7 @@ import sys
 
 import jieba
 import numpy as np
+import torch
 import transformers
 from datasets import load_dataset
 from nltk.translate.bleu_score import sentence_bleu, SmoothingFunction
@@ -108,13 +109,29 @@ def main():
 
     tokenizer = AutoTokenizer.from_pretrained(model_args.model_name_or_path, trust_remote_code=True)
 
-    model = AutoModel.from_pretrained(model_args.model_name_or_path, config=config, trust_remote_code=True)
+    if model_args.ptuning_checkpoint is not None:
+        # Evaluation
+        # Loading extra state dict of prefix encoder
+        model = AutoModel.from_pretrained(model_args.model_name_or_path, config=config, trust_remote_code=True)
+        prefix_state_dict = torch.load(os.path.join(model_args.ptuning_checkpoint, "pytorch_model.bin"))
+        new_prefix_state_dict = {}
+        for k, v in prefix_state_dict.items():
+            if k.startswith("transformer.prefix_encoder."):
+                new_prefix_state_dict[k[len("transformer.prefix_encoder."):]] = v
+        model.transformer.prefix_encoder.load_state_dict(new_prefix_state_dict)
+    else:
+        model = AutoModel.from_pretrained(model_args.model_name_or_path, config=config, trust_remote_code=True)
 
     if model_args.quantization_bit is not None:
         print(f"Quantized to {model_args.quantization_bit} bit")
         model = model.quantize(model_args.quantization_bit)
-    model = model.half()
-    model.transformer.prefix_encoder.float()
+    if model_args.pre_seq_len is not None:
+        # P-tuning v2
+        model = model.half()
+        model.transformer.prefix_encoder.float()
+    else:
+        # Finetune
+        model = model.float()
 
     prefix = data_args.source_prefix if data_args.source_prefix is not None else ""
 
@@ -148,8 +165,8 @@ def main():
                 else:
                     prompt = ""
                     history = examples[history_column][i]
-                    for _, (old_query, response) in enumerate(history):
-                        prompt += "[Round {}]\n问：{}\n答：{}\n".format(i, old_query, response)
+                    for turn_idx, (old_query, response) in enumerate(history):
+                        prompt += "[Round {}]\n问：{}\n答：{}\n".format(turn_idx, old_query, response)
                     prompt += "[Round {}]\n问：{}\n答：".format(len(history), query)
                 inputs.append(prompt)
                 targets.append(examples[response_column][i])
@@ -182,8 +199,8 @@ def main():
                 else:
                     prompt = ""
                     history = examples[history_column][i]
-                    for i, (old_query, response) in enumerate(history):
-                        prompt += "[Round {}]\n问：{}\n答：{}\n".format(i, old_query, response)
+                    for turn_idx, (old_query, response) in enumerate(history):
+                        prompt += "[Round {}]\n问：{}\n答：{}\n".format(turn_idx, old_query, response)
                     prompt += "[Round {}]\n问：{}\n答：".format(len(history), query)
 
                 prompt = prefix + prompt
@@ -336,6 +353,7 @@ def main():
         tokenizer=tokenizer,
         data_collator=data_collator,
         compute_metrics=compute_metrics if training_args.predict_with_generate else None,
+        save_prefixencoder=model_args.pre_seq_len is not None
     )
 
     # Training
@@ -411,3 +429,4 @@ def _mp_fn(index):
 
 if __name__ == "__main__":
     main()
+    
