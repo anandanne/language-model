@@ -34,21 +34,24 @@ tokenizer, model, device = load_tokenizer_and_model(
 system_prompt = "Below is an instruction that describes a task. Write a response that appropriately completes the request.\n\n"
 user_prompt = "### Instruction:\n\n{}\n\n### Response:\n\n"
 assistant_prompt = "{}\n\n"
-stop_words = ["### Instruction", "### Response", "</s><s>"]
-end_of_text = "</s><s>"
+stop_words = ["### Instruction", "### Response", tokenizer.eos_token]
+end_of_text = tokenizer.eos_token
 
 
 def serialize(data):
     return json.dumps(data, ensure_ascii=False, separators=(",", ":"))
 
 
-def map_choice(text):
+def map_choice(text, delta=None):
     """Create a choice object from model outputs."""
     choice = {
         "index": 0,
         "message": {"role": "assistant", "content": text},
         "finish_reason": None,
     }
+
+    if delta is not None:
+        choice["delta"] = {"role": "assistant", "content": delta}
 
     return choice
 
@@ -90,6 +93,7 @@ async def completions(body: Body, request: Request):
     input_ids = input_ids.to(device)
 
     async def event_generator():
+        size = 0
         for response in sample_decode(
             input_ids,
             model,
@@ -101,7 +105,9 @@ async def completions(body: Body, request: Request):
         ):
             data = template.copy()
             response = response.replace(end_of_text, "")
-            data["choices"] = [map_choice(response)]
+            delta = response[size:]
+            size = len(response)
+            data["choices"] = [map_choice(response, delta)]
 
             if await request.is_disconnected():
                 return
