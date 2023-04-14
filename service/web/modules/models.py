@@ -287,6 +287,11 @@ class LLaMAClient(FastAPIClient):
     lora_path = None
 
 
+class FireflyClient(FastAPIClient):
+
+    api_url = FIREFLY_COMPLETION_URL
+
+
 def get_model(
     model_name,
     lora_model_path=None,
@@ -317,6 +322,9 @@ def get_model(
         elif model_type == ModelType.ChatGLM:
             logging.info(f"正在加载ChatGLM模型: {model_name}")
             model = ChatGLMClient(model_name)
+        elif model_type == ModelType.Bloom:
+            logging.info(f"正在加载ChatGLM模型: {model_name}")
+            model = FireflyClient(model_name)
         elif model_type == ModelType.LLaMA and lora_model_path == "":
             msg = f"现在请为 {model_name} 选择LoRA模型"
             logging.info(msg)
