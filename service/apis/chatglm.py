@@ -43,13 +43,16 @@ def serialize(data):
     return json.dumps(data, ensure_ascii=False, separators=(",", ":"))
 
 
-def map_choice(text):
+def map_choice(text, delta=None):
     """Create a choice object from model outputs."""
     choice = {
         "index": 0,
         "message": {"role": "assistant", "content": text},
         "finish_reason": None,
     }
+
+    if delta is not None:
+        choice["delta"] = {"role": "assistant", "content": delta}
 
     return choice
 
@@ -77,7 +80,8 @@ async def completions(body: Body, request: Request):
     }
 
     async def event_generator():
-        for response in model.stream_chat(
+        size = 0
+        for response, _ in model.stream_chat(
             tokenizer,
             question,
             history,
@@ -85,8 +89,10 @@ async def completions(body: Body, request: Request):
             top_p=getattr(body, "top_p", 0.7),
             temperature=getattr(body, "temperature", 0.95),
         ):
+            delta = response[size:]
+            size = len(response)
             data = template.copy()
-            data["choices"] = [map_choice(response[0])]
+            data["choices"] = [map_choice(response, delta)]
 
             if await request.is_disconnected():
                 return
@@ -97,7 +103,7 @@ async def completions(body: Body, request: Request):
     if body.stream:
         return EventSourceResponse(event_generator())
     else:
-        response = model.chat(
+        response, _ = model.chat(
             tokenizer,
             question,
             history,
@@ -106,12 +112,12 @@ async def completions(body: Body, request: Request):
             temperature=getattr(body, "temperature", 0.95),
         )
         data = template.copy()
-        data["choices"] = [map_choice(response[0])]
+        data["choices"] = [map_choice(response)]
 
         data["usage"] = {
             "prompt_tokens": len(question),
-            "completion_tokens": len(response[0]),
-            "total_tokens": len(question) + len(response[0]),
+            "completion_tokens": len(response),
+            "total_tokens": len(question) + len(response),
         }
 
         return data

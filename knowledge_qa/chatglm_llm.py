@@ -58,6 +58,6 @@ class ChatGLM(LLM):
 
 
 chatglm = ChatGLM()
-print(chatglm("你好"))
+# print(chatglm("你好"))
 print(chatglm("什么是机器学习"))
-print(chatglm("怎么学好他"))
+# print(chatglm("怎么学好他"))
