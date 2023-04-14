@@ -32,5 +32,6 @@ PyPDF2
 pdfplumber
 pandas
 commentjson
+sse_starlette
 git+https://github.com/huggingface/transformers.git
 git+https://github.com/huggingface/peft.git
