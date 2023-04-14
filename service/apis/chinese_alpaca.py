@@ -107,7 +107,7 @@ async def completions(body: Body, request: Request):
                 return
             yield serialize(data)
 
-        yield ""
+        yield "[DONE]"
 
     if body.stream:
         return EventSourceResponse(event_generator())

@@ -260,7 +260,7 @@ class FastAPIClient(BaseLLMModel):
                 chunk_length = len(chunk)
                 try:
                     chunk = chunk[6:]
-                    if len(chunk) == 0:
+                    if chunk == "[DONE]":
                         continue
                     else:
                         chunk = json.loads(chunk)

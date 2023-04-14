@@ -1,36 +1,25 @@
-# 启动对话界面
+# 模型对话界面
 
 使用**接口方式**
 
+## 1. 启动接口
+
 ### ChatGLM-6B
 
-首先启动模型接口
-
-```commandline
+```shell
 python service/apis/chatglm.py
-```
-
-然后启动对话界面
-
-```commandline
-export CHATGLM_COMPLETION_URL=http://192.168.0.53:80/v1/chat/completions
-
-cd service
-
-python web/chatbot.py
 ```
 
 ### LLaMA
 
-首先启动模型接口
-
-```commandline
+```shell
 python service/apis/llama.py
 ```
 
-然后启动对话界面
+## 2. 启动对话界面
 
-```commandline
+```shell
+export CHATGLM_COMPLETION_URL=http://192.168.0.53:80/v1/chat/completions
 export LLAMA_COMPLETION_URL=http://192.168.0.59:80/v1/chat/completions
 
 cd service
