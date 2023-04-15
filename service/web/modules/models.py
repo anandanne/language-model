@@ -5,7 +5,6 @@ import logging
 import colorama
 import requests
 
-from . import config
 from . import shared
 from .base_model import BaseLLMModel, ModelType
 from .presets import (
@@ -327,8 +326,6 @@ def get_model(
 ):
     msg = f"模型设置为了： {model_name}"
     model_type = ModelType.get_type(model_name)
-    if model_type != ModelType.OpenAI:
-        config.local_embedding = True
     model = None
     try:
         if model_type == ModelType.OpenAI:

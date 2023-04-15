@@ -1,11 +1,15 @@
 import logging
+import sys
 from typing import Dict, Optional
 
+from colorama import init, Fore
+from langchain.callbacks.streaming_stdout import StreamingStdOutCallbackHandler
 from langchain.chat_models import ChatOpenAI
 from langchain.llms.openai import OpenAI
 from langchain.utils import get_from_dict_or_env
 from pydantic import root_validator
 
+init(autoreset=True)
 logger = logging.getLogger()
 
 
@@ -86,19 +90,35 @@ class SelfHostedChatOpenAI(ChatOpenAI):
         return values
 
 
+class StreamingStdOutCallbackHandlerWithColor(StreamingStdOutCallbackHandler):
+    def on_llm_new_token(self, token: str, **kwargs) -> None:
+        """Run on new LLM token. Only available when streaming is enabled."""
+        sys.stdout.write(Fore.BLUE + token)
+        sys.stdout.flush()
+
+
 if __name__ == "__main__":
     from langchain.schema import HumanMessage
-    # from langchain.callbacks.base import CallbackManager
-    # from langchain.callbacks.streaming_stdout import StreamingStdOutCallbackHandler
+    from langchain.memory import ConversationBufferWindowMemory
+    from langchain.callbacks.base import CallbackManager
 
     chat = SelfHostedChatOpenAI(
         model_name="chatglm-6b",
         openai_api_base="http://192.168.0.53/v1",
         openai_api_key="xxx",
-        max_tokens=100,
-        # streaming=True,
-        # verbose=True,
-        # callback_manager=CallbackManager([StreamingStdOutCallbackHandler()]),
+        max_tokens=2000,
+        streaming=True,
+        verbose=True,
+        callback_manager=CallbackManager([StreamingStdOutCallbackHandlerWithColor()]),
     )
 
-    print(chat([HumanMessage(content="你好")]))
+    memory = ConversationBufferWindowMemory(k=4, return_messages=True)
+    while True:
+
+        user_input = input(Fore.BLUE + "user: ")
+        messages = memory.load_memory_variables({})["history"]
+        messages.append(HumanMessage(content=user_input))
+        print(Fore.BLUE + "AI: \n")
+        output = chat(messages)
+        print("\n")
+        memory.save_context({"input": user_input}, {"output": output.content})

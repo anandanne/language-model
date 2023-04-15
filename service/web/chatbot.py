@@ -1,15 +1,12 @@
 import logging
 
 import gradio as gr
-from llama_index import PromptHelper
 
 from modules import config
 from modules import shared
 from modules.config import (
     my_api_key,
     multi_api_key,
-    advance_docs,
-    update_doc_config,
     dockerflag,
     authflag,
     auth_list,
@@ -17,7 +14,6 @@ from modules.config import (
 from modules.models import get_model
 from modules.overwrites import (
     postprocess,
-    compact_text_chunks,
     reload_javascript,
 )
 from modules.presets import (
@@ -76,9 +72,7 @@ from modules.utils import (
 
 )
 
-
 gr.Chatbot.postprocess = postprocess
-PromptHelper.compact_text_chunks = compact_text_chunks
 
 
 def create_new_model():
@@ -177,10 +171,6 @@ with gr.Blocks(css=customCSS, theme=small_and_beautiful_theme) as demo:
                         multiselect=False,
                         value=REPLY_LANGUAGES[0],
                     )
-                    index_files = gr.Files(label="上传索引文件", type="file")
-                    two_column = gr.Checkbox(label="双栏pdf", value=advance_docs["pdf"].get("two_column", False))
-                    # TODO: 公式ocr
-                    # formula_ocr = gr.Checkbox(label="识别公式", value=advance_docs["pdf"].get("formula_ocr", False))
 
                 with gr.Tab(label="Prompt"):
                     systemPromptTxt = gr.Textbox(
@@ -353,7 +343,6 @@ with gr.Blocks(css=customCSS, theme=small_and_beautiful_theme) as demo:
             chatbot,
             use_streaming_checkbox,
             use_websearch_checkbox,
-            index_files,
             language_select_dropdown,
         ],
         outputs=[chatbot, status_display],
@@ -414,7 +403,6 @@ with gr.Blocks(css=customCSS, theme=small_and_beautiful_theme) as demo:
             chatbot,
             use_streaming_checkbox,
             use_websearch_checkbox,
-            index_files,
             language_select_dropdown,
         ],
         [chatbot, status_display],
@@ -434,8 +422,6 @@ with gr.Blocks(css=customCSS, theme=small_and_beautiful_theme) as demo:
         [chatbot, status_display],
         show_progress=False
     )
-
-    two_column.change(update_doc_config, [two_column], None)
 
     # LLM Models
     keyTxt.change(set_key, [current_model, keyTxt], [user_api_key, status_display]).then(**get_usage_args)

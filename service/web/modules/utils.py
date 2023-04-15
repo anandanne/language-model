@@ -394,8 +394,6 @@ def versions_html():
 Python: <span title="{sys.version}">{python_version}</span>
  • 
 Gradio: {gr.__version__}
- • 
-Commit: {commit_info}
 """
 
 

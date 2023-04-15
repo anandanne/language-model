@@ -7,16 +7,12 @@ import colorama
 import tiktoken
 import urllib3
 from duckduckgo_search import ddg
-from llama_index import PromptHelper
 
 from . import shared
-from .config import local_embedding
-from .llama_func import construct_index
 from .presets import (
     MODEL_TOKEN_LIMIT,
     BILLING_NOT_APPLICABLE_MSG,
     DEFAULT_TOKEN_LIMIT,
-    PROMPT_TEMPLATE,
     WEBSEARCH_PTOMPT_TEMPLATE,
     STANDARD_ERROR_MSG,
     NO_INPUT_MSG,
@@ -29,9 +25,7 @@ from .utils import (
     construct_user,
     construct_assistant,
     count_token,
-    retrieve_proxy,
     add_source_numbers,
-    add_details,
     replace_today,
     hide_middle_chars,
     save_file,
@@ -190,102 +184,62 @@ class BaseLLMModel:
         status_text = self.token_message()
         return chatbot, status_text
 
-    def predict(
-        self,
-        inputs,
-        chatbot,
-        stream=False,
-        use_websearch=False,
-        files=None,
-        reply_language="中文",
-        should_check_token_count=True,
-    ):  # repetition_penalty, top_k
-        from llama_index.indices.vector_store.base_query import GPTVectorStoreIndexQuery
-        from llama_index.indices.query.schema import QueryBundle
-        from langchain.embeddings.huggingface import HuggingFaceEmbeddings
-        from llama_index import (
-            LangchainEmbedding,
-            OpenAIEmbedding,
-        )
-
-        logging.info(
-            "输入为：" + colorama.Fore.BLUE + f"{inputs}" + colorama.Style.RESET_ALL
-        )
-        if should_check_token_count:
-            yield chatbot + [(inputs, "")], "开始生成回答……"
-        if reply_language == "跟随问题语言（不稳定）":
-            reply_language = "the same language as the question, such as English, 中文, 日本語, Español, Français, or Deutsch."
-        old_inputs = None
+    def prepare_inputs(self, real_inputs, use_websearch, reply_language, chatbot):
         display_append = []
         limited_context = False
-        if files:
-            limited_context = True
-            old_inputs = inputs
-            msg = "加载索引中……（这可能需要几分钟）"
-            logging.info(msg)
-            yield chatbot + [(inputs, "")], msg
-            index = construct_index(self.api_key, file_src=files)
-            assert index is not None, "索引构建失败"
-            msg = "索引构建完成，获取回答中……"
-            if local_embedding or self.model_type != ModelType.OpenAI:
-                embed_model = LangchainEmbedding(HuggingFaceEmbeddings())
-            else:
-                embed_model = OpenAIEmbedding()
-            logging.info(msg)
-            yield chatbot + [(inputs, "")], msg
-            with retrieve_proxy():
-                prompt_helper = PromptHelper(
-                    max_input_size=4096,
-                    num_output=5,
-                    max_chunk_overlap=20,
-                    chunk_size_limit=600,
-                )
-                from llama_index import ServiceContext
+        fake_inputs = real_inputs
 
-                service_context = ServiceContext.from_defaults(
-                    prompt_helper=prompt_helper, embed_model=embed_model
-                )
-                query_object = GPTVectorStoreIndexQuery(
-                    index.index_struct,
-                    service_context=service_context,
-                    similarity_top_k=5,
-                    vector_store=index._vector_store,
-                    docstore=index._docstore,
-                )
-                query_bundle = QueryBundle(inputs)
-                nodes = query_object.retrieve(query_bundle)
-            reference_results = [n.node.text for n in nodes]
-            reference_results = add_source_numbers(reference_results, use_source=False)
-            display_append = add_details(reference_results)
-            display_append = "\n\n" + "".join(display_append)
-            inputs = (
-                replace_today(PROMPT_TEMPLATE)
-                .replace("{query_str}", inputs)
-                .replace("{context_str}", "\n\n".join(reference_results))
-                .replace("{reply_language}", reply_language)
-            )
-        elif use_websearch:
+        if use_websearch:
             limited_context = True
-            search_results = ddg(inputs, max_results=5)
-            old_inputs = inputs
+            search_results = ddg(real_inputs, max_results=5)
+
             reference_results = []
             for idx, result in enumerate(search_results):
                 logging.debug(f"搜索结果{idx + 1}：{result}")
                 domain_name = urllib3.util.parse_url(result["href"]).host
                 reference_results.append([result["body"], result["href"]])
                 display_append.append(
-                    f"{idx+1}. [{domain_name}]({result['href']})\n"
+                    f"<li><a href=\"{result['href']}\" target=\"_blank\">{domain_name}</a></li>\n"
                 )
+
             reference_results = add_source_numbers(reference_results)
-            display_append = "\n\n" + "".join(display_append)
-            inputs = (
+            display_append = "<ol>\n\n" + "".join(display_append) + "</ol>"
+            real_inputs = (
                 replace_today(WEBSEARCH_PTOMPT_TEMPLATE)
-                .replace("{query}", inputs)
+                .replace("{query}", real_inputs)
                 .replace("{web_results}", "\n\n".join(reference_results))
                 .replace("{reply_language}", reply_language)
             )
         else:
             display_append = ""
+        return limited_context, fake_inputs, display_append, real_inputs, chatbot
+
+    def predict(
+        self,
+        inputs,
+        chatbot,
+        stream=False,
+        use_websearch=False,
+        reply_language="中文",
+        should_check_token_count=True,
+    ):  # repetition_penalty, top_k
+
+        status_text = "开始生成回答……"
+        logging.info(
+            "输入为：" + colorama.Fore.BLUE + f"{inputs}" + colorama.Style.RESET_ALL
+        )
+        if should_check_token_count:
+            yield chatbot + [(inputs, "")], status_text
+        if reply_language == "跟随问题语言（不稳定）":
+            reply_language = "the same language as the question, such as English, 中文, 日本語, Español, Français, or Deutsch."
+
+        limited_context, fake_inputs, display_append, inputs, chatbot = self.prepare_inputs(
+            real_inputs=inputs,
+            use_websearch=use_websearch,
+            reply_language=reply_language,
+            chatbot=chatbot,
+        )
+        yield chatbot + [(fake_inputs, "")], status_text
 
         if (
             self.need_api_key and
@@ -320,7 +274,7 @@ class BaseLLMModel:
                 iter = self.stream_next_chatbot(
                     inputs,
                     chatbot,
-                    fake_input=old_inputs,
+                    fake_input=fake_inputs,
                     display_append=display_append,
                 )
                 for chatbot, status_text in iter:
@@ -330,7 +284,7 @@ class BaseLLMModel:
                 chatbot, status_text = self.next_chatbot_at_once(
                     inputs,
                     chatbot,
-                    fake_input=old_inputs,
+                    fake_input=fake_inputs,
                     display_append=display_append,
                 )
                 yield chatbot, status_text
@@ -364,6 +318,7 @@ class BaseLLMModel:
                 count += 1
                 del self.all_token_counts[0]
                 del self.history[:2]
+
             logging.info(status_text)
             status_text = f"为了防止token超限，模型忘记了早期的 {count} 轮对话"
             yield chatbot, status_text
@@ -373,23 +328,24 @@ class BaseLLMModel:
         chatbot,
         stream=False,
         use_websearch=False,
-        files=None,
         reply_language="中文",
     ):
         logging.debug("重试中……")
-        if len(self.history) == 0:
+        if len(self.history) > 0:
+            inputs = self.history[-2]["content"]
+            del self.history[-2:]
+            self.all_token_counts.pop()
+        elif len(chatbot) > 0:
+            inputs = chatbot[-1][0]
+        else:
             yield chatbot, f"{STANDARD_ERROR_MSG}上下文是空的"
             return
 
-        inputs = self.history[-2]["content"]
-        del self.history[-2:]
-        self.all_token_counts.pop()
         iter = self.predict(
             inputs,
             chatbot,
             stream=stream,
             use_websearch=use_websearch,
-            files=files,
             reply_language=reply_language,
         )
         for x in iter:

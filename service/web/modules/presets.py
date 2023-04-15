@@ -38,7 +38,7 @@ CONCURRENT_COUNT = 100  # 允许同时使用的用户数量
 SIM_K = 5
 INDEX_QUERY_TEMPRATURE = 1.0
 
-CHUANHU_TITLE = """<h1 align="left">LLM Chatbot Interface 🚀</h1>"""
+CHUANHU_TITLE = """<h1 align="left">LLM Chatbot Interface 🤖️</h1>"""
 CHUANHU_DESCRIPTION = """\
 <div align="center" style="margin:16px 0">
 
