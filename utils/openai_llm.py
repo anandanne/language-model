@@ -1,6 +1,6 @@
 import logging
 import sys
-from typing import Dict, Optional
+from typing import Optional, Dict, Any, List
 
 from colorama import init, Fore
 from langchain.callbacks.base import CallbackManager
@@ -9,6 +9,11 @@ from langchain.chains import ConversationChain
 from langchain.chat_models import ChatOpenAI
 from langchain.llms.openai import OpenAI
 from langchain.memory import ConversationBufferWindowMemory
+from langchain.schema import (
+    BaseMessage,
+    HumanMessage,
+    AIMessage,
+)
 from langchain.utils import get_from_dict_or_env
 from pydantic import root_validator
 
@@ -100,8 +105,62 @@ class StreamingStdOutCallbackHandlerWithColor(StreamingStdOutCallbackHandler):
         sys.stdout.flush()
 
 
+class ChatGLMConversationBufferWindowMemory(ConversationBufferWindowMemory):
+    def load_memory_variables(self, inputs: Dict[str, Any]) -> Dict[str, str]:
+        """Return history buffer."""
+
+        if self.return_messages:
+            buffer: Any = self.buffer[-self.k * 2:]
+        else:
+            buffer = self.get_buffer_string(
+                self.buffer[-self.k * 2:],
+                human_prefix=self.human_prefix,
+                ai_prefix=self.ai_prefix,
+            )
+        return {self.memory_key: buffer}
+
+    @staticmethod
+    def get_buffer_string(
+        messages: List[BaseMessage], human_prefix: str = "问", ai_prefix: str = "答"
+    ) -> str:
+        """Get buffer string of messages."""
+        string_messages, i = [], 0
+        for m in messages:
+            if isinstance(m, HumanMessage):
+                role = human_prefix
+                string_messages.append(f"[Round {i}]\n{role}：{m.content}")
+                i += 1
+            elif isinstance(m, AIMessage):
+                role = ai_prefix
+                string_messages.append(f"{role}：{m.content}")
+            else:
+                raise ValueError(f"Got unsupported message type: {m}")
+
+        return "\n".join(string_messages) + f"\n[Round {i}]"
+
+
+class ChineseAlpacaConversationBufferWindowMemory(ConversationBufferWindowMemory):
+    @staticmethod
+    def get_buffer_string(
+        messages: List[BaseMessage], human_prefix: str = "### Instruction", ai_prefix: str = "### Response"
+    ) -> str:
+        """Get buffer string of messages."""
+        string_messages = []
+        for m in messages:
+            if isinstance(m, HumanMessage):
+                role = human_prefix
+                string_messages.append(f"{role}:\n\n{m.content}")
+            elif isinstance(m, AIMessage):
+                role = ai_prefix
+                string_messages.append(f"{role}:\n\n{m.content}")
+            else:
+                raise ValueError(f"Got unsupported message type: {m}")
+
+        return "\n\n".join(string_messages)
+
+
 def start_chat_by_chain(
-    model_name, openai_api_base, max_tokens=2048, k=5, human_prefix=None, ai_prefix=None, prompt=None, verbose=False,
+    model_name, openai_api_base, max_tokens=2048, k=5, prompt=None, verbose=False,
 ):
     llm = SelfHostedChatOpenAI(
         model_name=model_name,
@@ -113,9 +172,16 @@ def start_chat_by_chain(
         callback_manager=CallbackManager([StreamingStdOutCallbackHandlerWithColor()]),
     )
 
-    memory = ConversationBufferWindowMemory(k=k)
-    if human_prefix and ai_prefix:
-        memory.human_prefix, memory.ai_prefix = human_prefix, ai_prefix
+    if "chatglm" in model_name:
+        memory = ChatGLMConversationBufferWindowMemory(
+            k=k, human_prefix="问", ai_prefix="答"
+        )
+    elif model_name == "chinese-alpaca":
+        memory = ChineseAlpacaConversationBufferWindowMemory(
+            k=k, human_prefix="### Instruction", ai_prefix="### Response"
+        )
+    else:
+        raise ValueError(f"Got unsupported model name: {model_name}")
 
     chat_chain = ConversationChain(llm=llm, memory=memory, verbose=verbose)
     if prompt:
