@@ -33,3 +33,15 @@ cd service
 
 python web/chatbot.py
 ```
+
+# 命令端启动方式
+
+```shell
+python service/client.py
+```
+
+可选参数：
+
++ `model_name`： `chatglm` 或者 `chinese-alpaca`， 默认为 `chatglm`
+
++ `api_url`：接口地址，默认为 `http://192.168.0.53/v1`

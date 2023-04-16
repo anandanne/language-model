@@ -3,9 +3,12 @@ import sys
 from typing import Dict, Optional
 
 from colorama import init, Fore
+from langchain.callbacks.base import CallbackManager
 from langchain.callbacks.streaming_stdout import StreamingStdOutCallbackHandler
+from langchain.chains import ConversationChain
 from langchain.chat_models import ChatOpenAI
 from langchain.llms.openai import OpenAI
+from langchain.memory import ConversationBufferWindowMemory
 from langchain.utils import get_from_dict_or_env
 from pydantic import root_validator
 
@@ -97,28 +100,29 @@ class StreamingStdOutCallbackHandlerWithColor(StreamingStdOutCallbackHandler):
         sys.stdout.flush()
 
 
-if __name__ == "__main__":
-    from langchain.schema import HumanMessage
-    from langchain.memory import ConversationBufferWindowMemory
-    from langchain.callbacks.base import CallbackManager
-
-    chat = SelfHostedChatOpenAI(
-        model_name="chatglm-6b",
-        openai_api_base="http://192.168.0.53/v1",
+def start_chat_by_chain(
+    model_name, openai_api_base, max_tokens=2048, k=5, human_prefix=None, ai_prefix=None, prompt=None, verbose=False,
+):
+    llm = SelfHostedChatOpenAI(
+        model_name=model_name,
+        openai_api_base=openai_api_base,
         openai_api_key="xxx",
-        max_tokens=2000,
+        max_tokens=max_tokens,
         streaming=True,
         verbose=True,
         callback_manager=CallbackManager([StreamingStdOutCallbackHandlerWithColor()]),
     )
 
-    memory = ConversationBufferWindowMemory(k=4, return_messages=True)
-    while True:
+    memory = ConversationBufferWindowMemory(k=k)
+    if human_prefix and ai_prefix:
+        memory.human_prefix, memory.ai_prefix = human_prefix, ai_prefix
 
+    chat_chain = ConversationChain(llm=llm, memory=memory, verbose=verbose)
+    if prompt:
+        chat_chain.prompt = prompt
+
+    while True:
         user_input = input(Fore.BLUE + "user: ")
-        messages = memory.load_memory_variables({})["history"]
-        messages.append(HumanMessage(content=user_input))
-        print(Fore.BLUE + "AI: \n")
-        output = chat(messages)
+        print(Fore.BLUE + "AI: ")
+        chat_chain.predict(input=user_input)
         print("\n")
-        memory.save_context({"input": user_input}, {"output": output.content})

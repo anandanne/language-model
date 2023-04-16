@@ -58,15 +58,14 @@ def is_stop_word_or_prefix(s: str, stop_words: list) -> bool:
     return False
 
 
-def load_tokenizer_and_model(base_model, adapter_model, load_8bit=False):
-    if torch.cuda.is_available():
-        device = "cuda"
-    else:
-        device = "cpu"
+def load_llama_tokenizer_and_model(base_model, adapter_model=None, load_8bit=False, device="cuda:0"):
 
-    try:
-        tokenizer = LlamaTokenizer.from_pretrained(adapter_model)
-    except:
+    if adapter_model:
+        try:
+            tokenizer = LlamaTokenizer.from_pretrained(adapter_model)
+        except:
+            tokenizer = LlamaTokenizer.from_pretrained(base_model)
+    else:
         tokenizer = LlamaTokenizer.from_pretrained(base_model)
 
     model = LlamaForCausalLM.from_pretrained(
@@ -76,21 +75,22 @@ def load_tokenizer_and_model(base_model, adapter_model, load_8bit=False):
         low_cpu_mem_usage=True,
     )
 
-    model_vocab_size = model.get_input_embeddings().weight.size(0)
-    tokenzier_vocab_size = len(tokenizer)
-    print(f"Vocab of the base model: {model_vocab_size}")
-    print(f"Vocab of the tokenizer: {tokenzier_vocab_size}")
+    if adapter_model:
+        model_vocab_size = model.get_input_embeddings().weight.size(0)
+        tokenzier_vocab_size = len(tokenizer)
+        print(f"Vocab of the base model: {model_vocab_size}")
+        print(f"Vocab of the tokenizer: {tokenzier_vocab_size}")
 
-    if model_vocab_size != tokenzier_vocab_size:
-        assert tokenzier_vocab_size > model_vocab_size
-        print("Resize model embeddings to fit tokenizer")
-        model.resize_token_embeddings(tokenzier_vocab_size)
+        if model_vocab_size != tokenzier_vocab_size:
+            assert tokenzier_vocab_size > model_vocab_size
+            print("Resize model embeddings to fit tokenizer")
+            model.resize_token_embeddings(tokenzier_vocab_size)
 
-    model = PeftModel.from_pretrained(
-        model,
-        adapter_model,
-        torch_dtype=torch.float16,
-    )
+        model = PeftModel.from_pretrained(
+            model,
+            adapter_model,
+            torch_dtype=torch.float16,
+        )
 
     if device == "cpu":
         model.float()
@@ -100,4 +100,5 @@ def load_tokenizer_and_model(base_model, adapter_model, load_8bit=False):
 
     model.to(device)
     model.eval()
-    return tokenizer, model, device
+
+    return tokenizer, model
