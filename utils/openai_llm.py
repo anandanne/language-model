@@ -139,7 +139,7 @@ class ChatGLMConversationBufferWindowMemory(ConversationBufferWindowMemory):
         return "\n".join(string_messages) + f"\n[Round {i}]"
 
 
-class ChineseAlpacaConversationBufferWindowMemory(ConversationBufferWindowMemory):
+class ChineseAlpacaConversationBufferWindowMemory(ChatGLMConversationBufferWindowMemory):
     @staticmethod
     def get_buffer_string(
         messages: List[BaseMessage], human_prefix: str = "### Instruction", ai_prefix: str = "### Response"
@@ -157,6 +157,42 @@ class ChineseAlpacaConversationBufferWindowMemory(ConversationBufferWindowMemory
                 raise ValueError(f"Got unsupported message type: {m}")
 
         return "\n\n".join(string_messages)
+
+
+class FireFlyConversationBufferWindowMemory(ChatGLMConversationBufferWindowMemory):
+    @staticmethod
+    def get_buffer_string(
+        messages: List[BaseMessage], human_prefix: str = "Human", ai_prefix: str = "Assistant"
+    ) -> str:
+        """Get buffer string of messages."""
+        string_messages = []
+        for m in messages:
+            if isinstance(m, HumanMessage):
+                string_messages.append(f"<s>{m.content}</s>")
+            elif isinstance(m, AIMessage):
+                string_messages.append(f"</s>{m.content}</s>")
+            else:
+                raise ValueError(f"Got unsupported message type: {m}")
+
+        return "".join(string_messages)
+
+
+class PhoenixConversationBufferWindowMemory(ChatGLMConversationBufferWindowMemory):
+    @staticmethod
+    def get_buffer_string(
+        messages: List[BaseMessage], human_prefix: str = "Human", ai_prefix: str = "Assistant"
+    ) -> str:
+        """Get buffer string of messages."""
+        string_messages = []
+        for m in messages:
+            if isinstance(m, HumanMessage):
+                role = human_prefix
+            elif isinstance(m, AIMessage):
+                role = ai_prefix
+            else:
+                raise ValueError(f"Got unsupported message type: {m}")
+            string_messages.append(f"{role}: <s>{m.content}</s>")
+        return "".join(string_messages)
 
 
 def start_chat_by_chain(
@@ -180,6 +216,14 @@ def start_chat_by_chain(
         memory = ChineseAlpacaConversationBufferWindowMemory(
             k=k, human_prefix="### Instruction", ai_prefix="### Response"
         )
+    elif "firefly" in model_name:
+        memory = FireFlyConversationBufferWindowMemory(
+            k=k, human_prefix="Human", ai_prefix="Assistant"
+        )
+    elif "phoenix" in model_name:
+        memory = PhoenixConversationBufferWindowMemory(
+            k=k, human_prefix="Human", ai_prefix="Assistant"
+        )
     else:
         raise ValueError(f"Got unsupported model name: {model_name}")
 
@@ -188,7 +232,7 @@ def start_chat_by_chain(
         chat_chain.prompt = prompt
 
     while True:
-        user_input = input(Fore.BLUE + "user: ")
+        user_input = input(Fore.BLUE + "HUMAN: ")
         print(Fore.BLUE + "AI: ")
         chat_chain.predict(input=user_input)
         print("\n")

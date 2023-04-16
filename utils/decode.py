@@ -1,7 +1,12 @@
 import torch
 import transformers
 from peft import PeftModel
-from transformers import LlamaForCausalLM, LlamaTokenizer
+from transformers import (
+    AutoModelForCausalLM,
+    AutoTokenizer,
+    LlamaForCausalLM,
+    LlamaTokenizer,
+)
 
 
 def sample_decode(
@@ -12,15 +17,19 @@ def sample_decode(
     max_length: int,
     temperature: float = 1.0,
     top_p: float = 1.0,
+    use_cache: bool = False,
 ):
     generated_tokens = []
     past_key_values = None
     for i in range(max_length):
         with torch.no_grad():
             if past_key_values is None:
-                outputs = model(input_ids)
+                outputs = model(input_ids, use_cache=use_cache)
             else:
-                outputs = model(input_ids[:, -1:], past_key_values=past_key_values)
+                outputs = model(
+                    input_ids[:, -1:], past_key_values=past_key_values, use_cache=use_cache,
+                )
+
             logits = outputs.logits[:, -1, :]
             past_key_values = outputs.past_key_values
 

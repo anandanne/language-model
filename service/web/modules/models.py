@@ -14,6 +14,7 @@ from .presets import (
     CHATGLM_COMPLETION_URL,
     LLAMA_COMPLETION_URL,
     FIREFLY_COMPLETION_URL,
+    PHOENIX_COMPLETION_URL,
     CONNECTION_TIMEOUT_MSG,
     ERROR_RETRIEVE_MSG,
     READ_TIMEOUT_MSG,
@@ -317,6 +318,11 @@ class FireflyClient(FastAPIClient):
     api_url = FIREFLY_COMPLETION_URL
 
 
+class PhoenixClient(FastAPIClient):
+
+    api_url = PHOENIX_COMPLETION_URL
+
+
 def get_model(
     model_name,
     access_key=None,
@@ -341,8 +347,11 @@ def get_model(
             logging.info(f"正在加载ChatGLM模型: {model_name}")
             model = ChatGLMClient(model_name)
         elif model_type == ModelType.Bloom:
-            logging.info(f"正在加载ChatGLM模型: {model_name}")
-            model = FireflyClient(model_name)
+            logging.info(f"正在加载Bloom模型: {model_name}")
+            if "firefly" in model_name:
+                model = FireflyClient(model_name)
+            elif "phoenix" in model_name:
+                model = PhoenixClient(model_name)
         elif model_type == ModelType.LLaMA:
             logging.info(f"正在加载LLaMA模型: {model_name}")
             model = LLaMAClient(model_name)

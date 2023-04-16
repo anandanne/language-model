@@ -15,6 +15,7 @@ TEMPLATES_DIR = "web/templates"
 CHATGLM_COMPLETION_URL = os.getenv("CHATGLM_COMPLETION_URL", None)
 LLAMA_COMPLETION_URL = os.getenv("LLAMA_COMPLETION_URL", None)
 FIREFLY_COMPLETION_URL = os.getenv("FIREFLY_COMPLETION_URL", None)
+PHOENIX_COMPLETION_URL = os.getenv("FIREFLY_COMPLETION_URL", None)
 
 
 # 错误信息
@@ -63,6 +64,7 @@ SUMMARIZE_PROMPT = "你是谁？我们刚才聊了什么？"  # 总结对话时�
 
 MODELS = [
     "chatglm-6b",
+    "phoenix",
     "llama-7b-hf",
     "firefly-2b6",
     "gpt-3.5-turbo",

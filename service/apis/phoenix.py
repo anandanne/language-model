@@ -9,9 +9,10 @@ import uvicorn
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from sse_starlette.sse import EventSourceResponse
+from transformers import BloomTokenizerFast, BloomForCausalLM
 
 from utils.api import Body, ChatBody, serialize, map_choice
-from utils.decode import sample_decode, load_llama_tokenizer_and_model
+from utils.decode import sample_decode
 
 logging.disable(logging.ERROR)
 warnings.filterwarnings("ignore")
@@ -44,9 +45,9 @@ async def completions(body: Body, request: Request):
 
     template = {
         "id": f"cmpl-{secrets.token_hex(12)}",
-        "object": "chat.completion",
+        "object": "text_completion",
         "created": round(time.time()),
-        "model": f"{args.model_path}-{args.lora_model_path}",
+        "model": args.model_path,
         "choices": [],
     }
 
@@ -61,13 +62,13 @@ async def completions(body: Body, request: Request):
             tokenizer,
             stop_words=stop_words,
             max_length=max_tokens,
-            top_p=getattr(body, "top_p", 0.2),
-            temperature=getattr(body, "temperature", 0.9),
+            top_p=getattr(body, "top_p", 0.9),
+            temperature=getattr(body, "temperature", 1.0),
         ):
+            data = template.copy()
             response = response.replace(end_of_text, "")
             delta = response[size:]
             size = len(response)
-            data = template.copy()
             data["choices"] = [map_choice(delta)]
 
             if await request.is_disconnected():
@@ -87,8 +88,8 @@ async def completions(body: Body, request: Request):
             tokenizer,
             stop_words=stop_words,
             max_length=max_tokens,
-            top_p=getattr(body, "top_p", 0.2),
-            temperature=getattr(body, "temperature", 0.9),
+            top_p=getattr(body, "top_p", 0.9),
+            temperature=getattr(body, "temperature", 1.0),
         ):
             response = r
 
@@ -124,7 +125,7 @@ async def chat_completions(body: ChatBody, request: Request):
         "id": f"cmpl-{secrets.token_hex(12)}",
         "object": "chat.completion",
         "created": round(time.time()),
-        "model": f"{args.model_path}-{args.lora_model_path}",
+        "model": args.model_path,
         "choices": [],
     }
 
@@ -139,8 +140,8 @@ async def chat_completions(body: ChatBody, request: Request):
             tokenizer,
             stop_words=stop_words,
             max_length=max_tokens,
-            top_p=getattr(body, "top_p", 0.2),
-            temperature=getattr(body, "temperature", 0.9),
+            top_p=getattr(body, "top_p", 0.9),
+            temperature=getattr(body, "temperature", 1.0),
         ):
             data = template.copy()
             response = response.replace(end_of_text, "")
@@ -165,8 +166,8 @@ async def chat_completions(body: ChatBody, request: Request):
             tokenizer,
             stop_words=stop_words,
             max_length=max_tokens,
-            top_p=getattr(body, "top_p", 0.2),
-            temperature=getattr(body, "temperature", 0.9),
+            top_p=getattr(body, "top_p", 0.9),
+            temperature=getattr(body, "temperature", 1.0),
         ):
             response = r
 
@@ -186,28 +187,22 @@ async def chat_completions(body: ChatBody, request: Request):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description='Simple API server for LLaMA')
-    parser.add_argument('--model_path', '-m', type=str, help='基础模型文件所在路径',
-                        default='/workspace/checkpoints/llama-7b-hf')
-    parser.add_argument('--lora_model_path', '-lora', type=str, help='LORA模型文件所在路径',
-                        default='/workspace/checkpoints/lora/chinese-alpaca-lora-7b')
-    parser.add_argument('--device', '-d', help='使用设备，cpu或cuda:0等', type=str, default='cuda:0')
-    parser.add_argument('--load_8bit', action='store_true')
+    parser = argparse.ArgumentParser(description='Simple API server for Bloom')
+    parser.add_argument('--model_path', '-m', type=str, help='模型文件所在路径',
+                        default='/workspace/checkpoints/phoenix-inst-chat-7b')
+    parser.add_argument('--device', '-d', type=str, help='使用设备，cpu或cuda:0等', default='cuda:0')
     parser.add_argument('--host', '-H', type=str, help='监听Host', default='0.0.0.0')
     parser.add_argument('--port', '-P', type=int, help='监听端口号', default=80)
     args = parser.parse_args()
 
-    tokenizer, model = load_llama_tokenizer_and_model(
-        args.model_path,
-        args.lora_model_path,
-        load_8bit=args.load_8bit,
-        device=args.device,
-    )
+    tokenizer = BloomTokenizerFast.from_pretrained(args.model_path)
+    model = BloomForCausalLM.from_pretrained(args.model_path).to(args.device)
+    model.eval()
 
-    system_prompt = "Below is an instruction that describes a task. Write a response that appropriately completes the request.\n\n"
-    user_prompt = "### Instruction:\n\n{}\n\n### Response:\n\n"
-    assistant_prompt = "{}\n\n"
+    system_prompt = "A chat between a curious human and an artificial intelligence assistant. The assistant gives helpful, detailed, and polite answers to the human's questions.\n\n"
+    user_prompt = "Human: <s>{}</s>Assistant: <s>"
+    assistant_prompt = "{}</s>"
     end_of_text = tokenizer.eos_token
-    stop_words = ["### Instruction", "### Response", tokenizer.eos_token]
+    stop_words = [tokenizer.eos_token]
 
     uvicorn.run(app, host=args.host, port=args.port)

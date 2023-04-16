@@ -51,3 +51,19 @@ python service/apis/firefly.py
 + `host`：监听Host，默认为 `0.0.0.0`
 
 + `port`：监听Port，默认为 `80`
+
+## Phoenix-inst-chat-7b
+
+```shell
+python service/apis/phoenix.py
+```
+
+可选参数：
+
++ `model_path`： 模型文件所在路径， 默认为 `/workspace/checkpoints/phoenix-inst-chat-7b`
+
++ `device`：使用设备，`cpu` 或 `cuda:0` 等，默认为 `cuda:0`
+
++ `host`：监听Host，默认为 `0.0.0.0`
+
++ `port`：监听Port，默认为 `80`

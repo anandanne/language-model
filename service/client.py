@@ -4,11 +4,15 @@ from utils.openai_llm import start_chat_by_chain
 from utils.prompt import (
     CHATGLM_PROMPT_TEMPLATE,
     CHINESE_ALPACA_PROMPT_TEMPLATE,
+    FIREFLY_PROMPT_TEMPLATE,
+    PHOENIX_PROMPT_TEMPLATE,
 )
 
 TEMPLATE_MAP = {
     "chatglm": CHATGLM_PROMPT_TEMPLATE,
     "chinese-alpaca": CHINESE_ALPACA_PROMPT_TEMPLATE,
+    "firefly": FIREFLY_PROMPT_TEMPLATE,
+    "phoenix": PHOENIX_PROMPT_TEMPLATE,
 }
 
 

@@ -48,7 +48,7 @@ class ModelType(Enum):
             model_type = ModelType.ChatGLM
         elif "llama" in model_name_lower or "alpaca" in model_name_lower:
             model_type = ModelType.LLaMA
-        elif "firefly" in model_name_lower:
+        elif "firefly" in model_name_lower or "phoenix" in model_name_lower:
             model_type = ModelType.Bloom
         else:
             model_type = ModelType.Unknown

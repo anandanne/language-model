@@ -62,8 +62,8 @@ async def completions(body: Body, request: Request):
             tokenizer,
             stop_words=stop_words,
             max_length=max_tokens,
-            top_p=getattr(body, "top_p", 0.2),
-            temperature=getattr(body, "temperature", 0.9),
+            top_p=getattr(body, "top_p", 0.7),
+            temperature=getattr(body, "temperature", 0.35),
         ):
             data = template.copy()
             response = response.replace(end_of_text, "")
@@ -89,7 +89,7 @@ async def completions(body: Body, request: Request):
             stop_words=stop_words,
             max_length=max_tokens,
             top_p=getattr(body, "top_p", 0.7),
-            temperature=getattr(body, "temperature", 0.95),
+            temperature=getattr(body, "temperature", 0.35),
         ):
             response = r
 
@@ -140,8 +140,8 @@ async def chat_completions(body: ChatBody, request: Request):
             tokenizer,
             stop_words=stop_words,
             max_length=max_tokens,
-            top_p=getattr(body, "top_p", 0.2),
-            temperature=getattr(body, "temperature", 0.9),
+            top_p=getattr(body, "top_p", 0.7),
+            temperature=getattr(body, "temperature", 0.35),
         ):
             data = template.copy()
             response = response.replace(end_of_text, "")
@@ -167,7 +167,7 @@ async def chat_completions(body: ChatBody, request: Request):
             stop_words=stop_words,
             max_length=max_tokens,
             top_p=getattr(body, "top_p", 0.7),
-            temperature=getattr(body, "temperature", 0.95),
+            temperature=getattr(body, "temperature", 0.35),
         ):
             response = r
 
