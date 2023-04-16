@@ -18,7 +18,6 @@ __all__ = [
     "advance_docs",
     "update_doc_config",
     "multi_api_key",
-    "local_embedding",
 ]
 
 # 添加一个统一的config文件，避免文件过多造成的疑惑（优先级最低）
@@ -119,8 +118,6 @@ https_proxy = os.environ.get("HTTPS_PROXY", https_proxy)
 # 重置系统变量，在不需要设置的时候不设置环境变量，以免引起全局代理报错
 os.environ["HTTP_PROXY"] = ""
 os.environ["HTTPS_PROXY"] = ""
-
-local_embedding = config.get("local_embedding", False)  # 是否使用本地embedding
 
 
 @contextmanager
