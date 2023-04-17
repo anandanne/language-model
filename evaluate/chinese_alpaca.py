@@ -21,9 +21,9 @@ def answer_fn(question):
 def main():
     import pandas as pd
 
-    questions = pd.read_csv("questions.csv")
+    questions = pd.read_csv("eval_result.csv")
     questions["chinese-alpaca"] = questions["question"].apply(answer_fn)
-    questions.to_csv("./questions.csv", index=False)
+    questions.to_csv("./eval_result.csv", index=False)
 
 
 if __name__ == "__main__":

@@ -23,7 +23,7 @@ def main():
 
     questions = pd.read_csv("questions.csv")
     questions["chatglm-6b"] = questions["question"].apply(answer_fn)
-    questions.to_csv("./questions.csv", index=False)
+    questions.to_csv("./eval_result.csv", index=False)
 
 
 if __name__ == "__main__":
