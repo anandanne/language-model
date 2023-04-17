@@ -193,7 +193,11 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     tokenizer = BloomTokenizerFast.from_pretrained(args.model_path)
-    model = BloomForCausalLM.from_pretrained(args.model_path).to(args.device)
+    model = BloomForCausalLM.from_pretrained(
+        args.model_path,
+        low_cpu_mem_usage=True,
+        torch_dtype=torch.float16,
+    ).to(args.device)
     model.eval()
 
     system_prompt = "A chat between a curious human and an artificial intelligence assistant. The assistant gives helpful, detailed, and polite answers to the human's questions.\n\n"
