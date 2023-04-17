@@ -10,8 +10,8 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from sse_starlette.sse import EventSourceResponse
 
-from utils.api import Body, ChatBody, serialize, map_choice
-from utils.decode import sample_decode, load_llama_tokenizer_and_model
+from utils.api import Body, ChatBody, serialize, map_choice, sample_decode
+from utils.load import load_llama_tokenizer_and_model
 
 logging.disable(logging.ERROR)
 warnings.filterwarnings("ignore")
@@ -109,8 +109,6 @@ async def completions(body: Body, request: Request):
 
 @app.post("/v1/chat/completions")
 async def chat_completions(body: ChatBody, request: Request):
-    question = body.messages[-1]
-    question = question.content
     max_tokens = max(1000, body.max_tokens)
 
     context = system_prompt
@@ -175,9 +173,9 @@ async def chat_completions(body: ChatBody, request: Request):
         data["choices"] = [map_choice(response, chat=True)]
 
         data["usage"] = {
-            "prompt_tokens": len(question),
+            "prompt_tokens": len(context),
             "completion_tokens": len(response),
-            "total_tokens": len(question) + len(response),
+            "total_tokens": len(context) + len(response),
         }
 
         torch_gc()
