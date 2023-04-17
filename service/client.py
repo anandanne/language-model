@@ -1,20 +1,7 @@
 from langchain.prompts import PromptTemplate
 
-from utils.openai_llm import start_chat_by_chain
-from utils.prompt import (
-    CHATGLM_PROMPT_TEMPLATE,
-    CHINESE_ALPACA_PROMPT_TEMPLATE,
-    FIREFLY_PROMPT_TEMPLATE,
-    PHOENIX_PROMPT_TEMPLATE,
-)
-
-TEMPLATE_MAP = {
-    "chatglm": CHATGLM_PROMPT_TEMPLATE,
-    "chinese-alpaca": CHINESE_ALPACA_PROMPT_TEMPLATE,
-    "firefly": FIREFLY_PROMPT_TEMPLATE,
-    "phoenix": PHOENIX_PROMPT_TEMPLATE,
-}
-
+from utils.custom_llm import start_chat_by_chain
+from utils.prompt import ChatPrompt
 
 if __name__ == "__main__":
     import argparse
@@ -25,7 +12,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     prompt = PromptTemplate(
-        input_variables=["history", "input"], template=TEMPLATE_MAP[args.model_name]
+        input_variables=["history", "input"], template=ChatPrompt.create(args.model_name)
     )
     start_chat_by_chain(
         args.model_name,

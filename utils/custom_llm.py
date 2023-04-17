@@ -17,6 +17,8 @@ from langchain.schema import (
 from langchain.utils import get_from_dict_or_env
 from pydantic import root_validator
 
+from .registry import BaseParent
+
 init(autoreset=True)
 logger = logging.getLogger()
 
@@ -106,6 +108,10 @@ class StreamingStdOutCallbackHandlerWithColor(StreamingStdOutCallbackHandler):
 
 
 class ChatGLMConversationBufferWindowMemory(ConversationBufferWindowMemory):
+
+    human_prefix: str = "问"
+    ai_prefix: str = "答"
+
     def load_memory_variables(self, inputs: Dict[str, Any]) -> Dict[str, str]:
         """Return history buffer."""
 
@@ -140,6 +146,10 @@ class ChatGLMConversationBufferWindowMemory(ConversationBufferWindowMemory):
 
 
 class ChineseAlpacaConversationBufferWindowMemory(ChatGLMConversationBufferWindowMemory):
+
+    human_prefix: str = "### Instruction"
+    ai_prefix: str = "### Response"
+
     @staticmethod
     def get_buffer_string(
         messages: List[BaseMessage], human_prefix: str = "### Instruction", ai_prefix: str = "### Response"
@@ -160,6 +170,10 @@ class ChineseAlpacaConversationBufferWindowMemory(ChatGLMConversationBufferWindo
 
 
 class FireFlyConversationBufferWindowMemory(ChatGLMConversationBufferWindowMemory):
+
+    human_prefix: str = "Human"
+    ai_prefix: str = "Assistant"
+
     @staticmethod
     def get_buffer_string(
         messages: List[BaseMessage], human_prefix: str = "Human", ai_prefix: str = "Assistant"
@@ -178,6 +192,10 @@ class FireFlyConversationBufferWindowMemory(ChatGLMConversationBufferWindowMemor
 
 
 class PhoenixConversationBufferWindowMemory(ChatGLMConversationBufferWindowMemory):
+
+    human_prefix: str = "Human"
+    ai_prefix: str = "Assistant"
+
     @staticmethod
     def get_buffer_string(
         messages: List[BaseMessage], human_prefix: str = "Human", ai_prefix: str = "Assistant"
@@ -195,9 +213,18 @@ class PhoenixConversationBufferWindowMemory(ChatGLMConversationBufferWindowMemor
         return "".join(string_messages)
 
 
-def start_chat_by_chain(
-    model_name, openai_api_base, max_tokens=2048, k=5, prompt=None, verbose=False,
-):
+class CustomConversationBufferWindowMemory(BaseParent):
+
+    registry = {}
+
+
+CustomConversationBufferWindowMemory.add_to_registry("chatglm", ChatGLMConversationBufferWindowMemory)
+CustomConversationBufferWindowMemory.add_to_registry("chinese-alpaca", ChineseAlpacaConversationBufferWindowMemory)
+CustomConversationBufferWindowMemory.add_to_registry("firefly", FireFlyConversationBufferWindowMemory)
+CustomConversationBufferWindowMemory.add_to_registry("phoenix", PhoenixConversationBufferWindowMemory)
+
+
+def start_chat_by_chain(model_name, openai_api_base, max_tokens=2048, k=5, prompt=None, verbose=False):
     llm = SelfHostedChatOpenAI(
         model_name=model_name,
         openai_api_base=openai_api_base,
@@ -208,25 +235,7 @@ def start_chat_by_chain(
         callback_manager=CallbackManager([StreamingStdOutCallbackHandlerWithColor()]),
     )
 
-    if "chatglm" in model_name:
-        memory = ChatGLMConversationBufferWindowMemory(
-            k=k, human_prefix="问", ai_prefix="答"
-        )
-    elif model_name == "chinese-alpaca":
-        memory = ChineseAlpacaConversationBufferWindowMemory(
-            k=k, human_prefix="### Instruction", ai_prefix="### Response"
-        )
-    elif "firefly" in model_name:
-        memory = FireFlyConversationBufferWindowMemory(
-            k=k, human_prefix="Human", ai_prefix="Assistant"
-        )
-    elif "phoenix" in model_name:
-        memory = PhoenixConversationBufferWindowMemory(
-            k=k, human_prefix="Human", ai_prefix="Assistant"
-        )
-    else:
-        raise ValueError(f"Got unsupported model name: {model_name}")
-
+    memory = CustomConversationBufferWindowMemory.create(model_name, k=k)
     chat_chain = ConversationChain(llm=llm, memory=memory, verbose=verbose)
     if prompt:
         chat_chain.prompt = prompt

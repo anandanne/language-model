@@ -1,6 +1,6 @@
 # 语言模型
 
-## 模型列表
+## 🐼 模型列表
 
 + `GPT2`：[《Language Models are Unsupervised Multitask Learners》](https://d4mucfpksywv.cloudfront.net/better-language-models/language-models.pdf)
 
@@ -27,6 +27,16 @@ bash docker/run.sh
 ```docker
 docker exec -it llm /bin/bash
 ```
+
+## 📚 数据集
+
+1. 50 万条中文 `ChatGPT` 指令 `Belle` 数据集：[BelleGroup/train_0.5M_CN](https://huggingface.co/datasets/BelleGroup/train_0.5M_CN)
+2. 100 万条中文 `ChatGPT` 指令 `Belle` 数据集：[BelleGroup/train_1M_CN](https://huggingface.co/datasets/BelleGroup/train_1M_CN)
+3. 5 万条英文 `ChatGPT` 指令 `Alpaca` 数据集：[50k English Stanford Alpaca dataset](https://github.com/tatsu-lab/stanford_alpaca#data-release)
+4. 2 万条中文 `ChatGPT` 指令 `Alpaca` 数据集：[shibing624/alpaca-zh](https://huggingface.co/datasets/shibing624/alpaca-zh)
+5. 69 万条中文指令 `Guanaco` 数据集(`Belle` 50 万条 + `Guanaco` 19 万条)：[Chinese-Vicuna/guanaco_belle_merge_v1.0](https://huggingface.co/datasets/Chinese-Vicuna/guanaco_belle_merge_v1.0)
+
+
 
 ## [模型训练](./llmtuning)
 
