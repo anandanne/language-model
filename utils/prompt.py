@@ -37,7 +37,7 @@ FIREFLY_PROMPT_TEMPLATE = """Below is an instruction that describes a task. Writ
 
 {history}<s>{input}</s></s>"""
 
-PHOENIX_PROMPT_TEMPLATE = """Below is an instruction that describes a task. Write a response that appropriately completes the request.
+PHOENIX_PROMPT_TEMPLATE = """A chat between a curious human and an artificial intelligence assistant. The assistant gives helpful, detailed, and polite answers to the human's questions.
 
 {history}Human: <s>{input}</s>Assistant: <s>"""
 

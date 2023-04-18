@@ -63,6 +63,7 @@ async def completions(body: Body, request: Request):
             max_length=max_tokens,
             top_p=getattr(body, "top_p", 0.9),
             temperature=getattr(body, "temperature", 1.0),
+            use_cache=True,
         ):
             data = template.copy()
             response = response.replace(end_of_text, "")
@@ -89,6 +90,7 @@ async def completions(body: Body, request: Request):
             max_length=max_tokens,
             top_p=getattr(body, "top_p", 0.9),
             temperature=getattr(body, "temperature", 1.0),
+            use_cache=True,
         ):
             response = r
 
